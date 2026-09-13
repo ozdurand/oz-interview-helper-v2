@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Oswald Durand · Systems Dossier</title>
+<meta name="description" content="Production GenAI &amp; ML systems across three regulated industries — Johnson &amp; Johnson, Home Depot, and Citibank. Architecture, delivery maturity, and the pain points behind each.">
+<meta property="og:title" content="Oswald Durand — Systems Dossier">
+<meta property="og:description" content="Production GenAI &amp; ML across J&amp;J, Home Depot, and Citibank: architecture, POC→Production, and the real pain points per layer.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/dossier.css">
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<main id="home" class="screen on">
+  <div class="home-wrap">
+
+    <section class="pitch" aria-labelledby="pitchLabel">
+      <div class="pitch-head">
+        <h2 id="pitchLabel">Elevator pitch</h2>
+        <span class="statusline"><span class="dot"></span> Systems · live</span>
+        <span class="saveflag" id="saveFlag">Saved</span>
+      </div>
+      <div class="pitch-body" id="pitchText" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true"></div>
+      <div class="pitch-foot">
+        <span id="wordCount">0 words</span>
+        <span class="hint">Editable · saves to this browser</span>
+        <button type="button" class="linkish" id="resetPitch">Reset to original</button>
+      </div>
+    </section>
+
+    <button type="button" class="cta" id="openMatrix">Open the matrix</button>
+
+    <nav class="quicknav" aria-label="Jump to a company">
+      <a class="qn" href="#/jj/architecture"><b>Pharma</b><span>Johnson &amp; Johnson</span></a>
+      <a class="qn" href="#/hd/architecture"><b>Retail</b><span>Home Depot</span></a>
+      <a class="qn" href="#/citi/architecture"><b>Banking</b><span>Citibank</span></a>
+      <a class="qn wide" href="#/sys/rag"><b>Cross-cutting</b><span>RAG pipeline · CI/CD</span></a>
+    </nav>
+
+  </div>
+</main>
+
+<!-- ============ MATRIX ============ -->
+<div id="matrix" class="screen matrix" hidden>
+  <div class="matrix-head">
+    <div>
+      <h2>The matrix</h2>
+      <p>Company × maturity, plus the two pipelines that cut across all of them.</p>
+    </div>
+    <button type="button" class="ghost" id="closeMatrix">Close</button>
+  </div>
+
+  <div class="matrix-scroll">
+    <div class="mgrid" id="mgrid"><!-- built by app.js --></div>
+  </div>
+</div>
+
+<!-- ============ CONTENT VIEW (POC / MVP / Production / Pain points) ============ -->
+<main id="view" class="screen" hidden>
+  <header class="vbar">
+    <div class="vbar-id">
+      <span class="vbar-co" id="vCo"></span>
+      <span class="vbar-sep">/</span>
+      <span class="vbar-sec" id="vSec"></span>
+      <span class="vbar-sub" id="vSub"></span>
+    </div>
+    <div class="vbar-actions">
+      <button type="button" class="ghost" data-nav="matrix">Matrix</button>
+      <button type="button" class="ghost" data-nav="home">Home</button>
+    </div>
+  </header>
+  <div class="vbody" id="vBody"></div>
+</main>
+
+<!-- ============ DIAGRAM VIEW ============ -->
+<main id="diagram" class="screen dgm" hidden>
+  <header class="vbar">
+    <div class="vbar-id">
+      <span class="vbar-co" id="dCo"></span>
+      <span class="vbar-sep">/</span>
+      <span class="vbar-sec" id="dSec"></span>
+      <span class="vbar-sub" id="dSub"></span>
+    </div>
+    <div class="vbar-actions">
+      <button type="button" class="ghost" data-nav="matrix">Matrix</button>
+      <button type="button" class="ghost" data-nav="home">Home</button>
+    </div>
+  </header>
+
+  <div class="dtools" id="dTools">
+    <div class="tool-group" id="variantSlot"></div>
+    <div class="tool-group" id="depthSlot"></div>
+    <div class="tool-group">
+      <button type="button" class="tool" id="btnTrace">Trace the flow</button>
+      <button type="button" class="tool" id="btnNames" aria-pressed="false">Names only</button>
+    </div>
+    <div class="tool-group zoomers">
+      <button type="button" class="tool sq" id="btnOut" aria-label="Zoom out">−</button>
+      <button type="button" class="tool sq" id="btnIn" aria-label="Zoom in">+</button>
+      <button type="button" class="tool" id="btnFit">Fit</button>
+    </div>
+  </div>
+
+  <div class="chipstrip" id="dChips"></div>
+
+  <div class="stage" id="stage">
+    <div class="canvas" id="canvas"><!-- svg injected --></div>
+  </div>
+
+  <div class="tracebar" id="traceBar" hidden>
+    <span class="tspark"></span>
+    <p id="traceText"></p>
+    <button type="button" class="ghost sm" id="traceStop">Stop</button>
+  </div>
+
+  <div class="railwrap"><div class="rail" id="rail"></div></div>
+</main>
+
+<!-- ============ CARD PAGE ============ -->
+<main id="card" class="screen cardpage" hidden>
+  <header class="vbar">
+    <div class="vbar-id">
+      <span class="vbar-co" id="cCo"></span>
+      <span class="vbar-sep">/</span>
+      <span class="vbar-sec" id="cName"></span>
+      <span class="vbar-sub" id="cSub"></span>
+    </div>
+    <div class="vbar-actions">
+      <button type="button" class="ghost" id="cPrev">← Prev</button>
+      <button type="button" class="ghost" id="cNext">Next →</button>
+      <button type="button" class="ghost" id="cBack">Map</button>
+      <button type="button" class="ghost" data-nav="matrix">Matrix</button>
+      <button type="button" class="ghost" data-nav="home">Home</button>
+    </div>
+  </header>
+  <div class="cbody">
+    <div class="cinner">
+      <nav class="stepper" id="cStepper" aria-label="Layers"></nav>
+      <div class="panels" id="cPanels"></div>
+      <div class="room" id="cRoom"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ============ DETAIL DECK ============ -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="deck" id="deck" hidden role="dialog" aria-modal="true" aria-labelledby="deckTitle">
+  <div class="deck-top">
+    <div>
+      <p class="deck-eyebrow" id="deckEyebrow"></p>
+      <h3 id="deckTitle"></h3>
+    </div>
+    <button type="button" class="ghost sm" id="deckClose" aria-label="Close">Close</button>
+  </div>
+  <div class="deck-body" id="deckBody"></div>
+  <div class="deck-foot" id="deckFoot">
+    <button type="button" class="ghost sm" id="deckPrev">← Prev</button>
+    <span class="deck-pos" id="deckPos"></span>
+    <button type="button" class="ghost sm" id="deckNext">Next →</button>
+  </div>
+</aside>
+
+<script src="assets/js/content.js"></script>
+<script src="assets/js/diagrams.js"></script>
+<script src="assets/js/diagrams2.js"></script>
+<script src="assets/js/cards.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/editor.js"></script>
+</body>
+</html>
