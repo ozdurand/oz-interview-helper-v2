@@ -88,7 +88,7 @@ DIAGRAMS.jj = {
      "Every chunk carries entity and ancestor IDs, tier and effective date",
      "Filters are applied in the query, never after retrieval"
     ],
-    "say": "Hybrid retrieval with the filters in the query, not on the result set."
+      "say": "Ingestion prepares the evidence, terminology normalizes it, and AI Search retrieves it with filters in the query."
    }
   },
   {
@@ -107,7 +107,7 @@ DIAGRAMS.jj = {
      "Closure table for ancestor expansion",
      "Both built by the Ontology Loader and versioned per vocabulary release"
     ],
-    "say": "Derived artifacts, not a database. That sentence is the whole design decision."
+      "say": "The terminology layer is built during ingestion so AI Search can filter by concepts instead of traversing a graph at query time."
    }
   },
   {
@@ -126,7 +126,7 @@ DIAGRAMS.jj = {
      "A document is embedded exactly once per version",
      "Closure feeds stamping; a vocabulary release triggers a re-stamp"
     ],
-    "say": "One document, chunked and embedded exactly once."
+      "say": "Ingestion and ETL turn source documents into versioned, searchable evidence for the AKS services."
    }
   }
  ],
@@ -162,12 +162,13 @@ DIAGRAMS.jj = {
    "sub": "+ WAF",
    "tone": "blue",
    "detail": {
-    "role": "Global edge in front of the platform.",
+      "role": "The global, protected entry point in front of the platform.",
     "does": [
-     "TLS termination and WAF rules at the edge",
-     "Routes to the regional AKS ingress"
+       "Terminates TLS and applies WAF rules at the edge",
+       "Routes and load-balances requests to the regional AKS ingress",
+       "Keeps the cluster and agents off the public internet"
     ],
-    "say": "Nothing reaches the cluster without passing the edge."
+      "say": "Front Door is the global, protected entry point; only validated traffic continues to APIM and AKS."
    }
   },
   {

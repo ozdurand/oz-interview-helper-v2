@@ -112,9 +112,9 @@ const CARDS = {
   ]
  },
  "jj/afd": {
-  "head": "The global edge: TLS, WAF and routing into the regional cluster.",
-  "dh": "A managed edge beat an in-cluster ingress exposed directly.",
-  "dec": "Front Door absorbs TLS termination and WAF rules before anything reaches AKS, so the cluster has no public surface and the agents have none at all.",
+    "head": "The protected global entry point: TLS, WAF, routing and load balancing before the regional application stack.",
+    "dh": "A managed edge beat exposing an in-cluster ingress directly to the internet.",
+    "dec": "Front Door terminates TLS, applies WAF rules, and routes validated traffic to the regional API layer. That keeps AKS and the agents private while giving the platform a resilient, globally managed entry point.",
   "stack": [
    [
     "Service",
@@ -122,7 +122,7 @@ const CARDS = {
    ],
    [
     "Duties",
-    "TLS · WAF · routing"
+    "TLS · WAF · routing · load balancing"
    ]
   ]
  },

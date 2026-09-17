@@ -31,7 +31,11 @@ function sizePitch() {
     other += ch.offsetHeight + parseFloat(s.marginTop) + parseFloat(s.marginBottom);
   });
   other -= el.offsetHeight;                       /* the body's own share */
-  const avail = home.clientHeight - other - 6;
+  const pitch = el.closest('.pitch');
+  const pitchHead = pitch ? pitch.querySelector('.pitch-head') : null;
+  const pitchFoot = pitch ? pitch.querySelector('.pitch-foot') : null;
+  const chrome = (pitchHead ? pitchHead.offsetHeight : 0) + (pitchFoot ? pitchFoot.offsetHeight : 0) + 2;
+  const avail = home.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - chrome - 6;
   el.style.maxHeight = Math.max(140, avail) + 'px';
 }
 function initPitch() {
@@ -50,6 +54,7 @@ function initPitch() {
 /* ---------------- matrix ---------------- */
 const SECTIONS = [
   { id: 'architecture', g: '\u25A4', t: 'Architecture', d: 'Interactive map', map: true },
+  { id: 'problem', g: '\u25C8', t: 'Problem statement', d: 'Why the platform exists' },
   { id: 'poc', g: '\u25D4', t: 'POC', d: 'Prove it works' },
   { id: 'mvp', g: '\u25D1', t: 'MVP', d: 'Make it real' },
   { id: 'prod', g: '\u25CF', t: 'Production', d: 'Run it at scale' },
@@ -60,7 +65,8 @@ function buildMatrix() {
   ['jj', 'hd', 'citi'].forEach(id => {
     const c = CO()[id];
     html += `<section class="mrow"><div class="mrow-head"><h3>${OZ.ed(c.name, `companies.${id}.name`)}</h3><p>${OZ.ed(c.kicker, `companies.${id}.kicker`)} · ${OZ.ed(c.tag, `companies.${id}.tag`)}</p></div><div class="mrow-cells">`;
-    SECTIONS.forEach(s => {
+    const sections = id === 'jj' ? SECTIONS : SECTIONS.filter(s => s.id !== 'problem');
+    sections.forEach(s => {
       html += `<a class="mcell${s.map ? ' map' : ''}" href="#/${id}/${s.id}"><span class="g">${s.g}</span><span class="t">${s.t}</span><span class="d">${s.d}</span></a>`;
     });
     html += `</div></section>`;
@@ -129,9 +135,17 @@ function renderPain(coId) {
   $('#vBody').scrollTop = 0;
 }
 
+function renderProblem() {
+  $('#vCo').textContent = 'Johnson & Johnson';
+  $('#vSec').textContent = PROBLEM_STATEMENT.label;
+  $('#vSub').textContent = PROBLEM_STATEMENT.sub;
+  $('#vBody').innerHTML = `<div class="vinner problem-view"><div class="blk problem-hero"><h4>General use case</h4><h3>${PROBLEM_STATEMENT.title}</h3><div class="problem-copy">${PROBLEM_STATEMENT.paragraphs.map(p => `<p>${p}</p>`).join('')}</div></div></div>`;
+  $('#vBody').scrollTop = 0;
+}
+
 /* ---------------- diagram view ---------------- */
 const D = {
-  dgm: null, lay: null, id: null, variant: null, depth: 3, names: false,
+  dgm: null, lay: null, id: null, variant: null, depth: 3, names: false, boardOnly: false,
   scale: 1, tx: 0, ty: 0, byId: {}, order: [], idx: 0, tracing: false, timer: null, sel: null
 };
 const stage = $('#stage'), canvas = $('#canvas');
@@ -167,6 +181,9 @@ function paint() {
 function buildTools() {
   const vs = $('#variantSlot'), ds = $('#depthSlot');
   vs.innerHTML = ''; ds.innerHTML = '';
+  const boardButton = $('#btnBoard');
+  boardButton.setAttribute('aria-pressed', String(D.boardOnly));
+  boardButton.textContent = D.boardOnly ? 'Normal view' : 'Board only';
   if (D.dgm.variantGroup) {
     const g = D.dgm.variantGroup;
     vs.innerHTML = `<span class="tool-label">${g.label}</span>` + g.options.map(o => `<button type="button" class="tool vopt${o.id === D.variant ? ' on' : ''}" data-v="${o.id}">${o.label}</button>`).join('');
@@ -222,8 +239,10 @@ function openDiagram(id, keepView) {
     D.variant = D.dgm.variantGroup ? D.dgm.variantGroup.options[0].id : null;
     D.depth = D.dgm.depthGroup ? D.dgm.depthGroup.options[D.dgm.depthGroup.options.length - 1].id : 3;
     D.names = false;
+    D.boardOnly = false;
     $('#btnNames').setAttribute('aria-pressed', 'false');
   }
+  $('#diagram').classList.toggle('board-only', D.boardOnly);
   D.lay = layout();
   buildHeader(); buildChips(); buildTools(); paint(); buildRail();
   if (!keepView) requestAnimationFrame(fit);
@@ -399,6 +418,12 @@ $('#btnNames').addEventListener('click', () => {
   canvas.querySelector('svg').classList.toggle('namesonly', D.names);
 });
 $('#btnFit').addEventListener('click', fit);
+$('#btnBoard').addEventListener('click', () => {
+  D.boardOnly = !D.boardOnly;
+  $('#diagram').classList.toggle('board-only', D.boardOnly);
+  buildTools();
+  requestAnimationFrame(fit);
+});
 $('#btnIn').addEventListener('click', () => { const r = stage.getBoundingClientRect(); zoomAt(1.25, r.width / 2, r.height / 2); });
 $('#btnOut').addEventListener('click', () => { const r = stage.getBoundingClientRect(); zoomAt(0.8, r.width / 2, r.height / 2); });
 
@@ -488,6 +513,7 @@ function route() {
       current.screen = 'diagram'; show('diagram'); openDiagram(co, keep); return;
     }
     if (sec === 'pain') { current.screen = 'view'; show('view'); renderPain(co); return; }
+    if (sec === 'problem') { current.screen = 'view'; show('view'); renderProblem(); return; }
     if (['poc', 'mvp', 'prod'].includes(sec)) { current.screen = 'view'; show('view'); renderPhase(co, sec); return; }
   }
   location.hash = '';
@@ -497,7 +523,12 @@ function rerender() {
   const p = current.parts || [];
   if (current.screen === 'diagram') { openDiagram(D.id, true); return; }
   if (current.screen === 'card') { openCard(current.cardId, current.cardRest); return; }
-  if (current.screen === 'view') { p[1] === 'pain' ? renderPain(p[0]) : renderPhase(p[0], p[1]); return; }
+  if (current.screen === 'view') {
+    if (p[1] === 'problem') renderProblem();
+    else if (p[1] === 'pain') renderPain(p[0]);
+    else renderPhase(p[0], p[1]);
+    return;
+  }
   buildMatrix();
 }
 
