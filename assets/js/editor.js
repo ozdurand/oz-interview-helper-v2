@@ -22,7 +22,7 @@ function injectToggles() {
   });
   const homeBtn = document.createElement('button');
   homeBtn.type = 'button'; homeBtn.className = 'ghost edittoggle home-edit'; homeBtn.textContent = 'Edit';
-  $('.home-wrap').prepend(homeBtn);
+  $('#homeBar').append(homeBtn);
   const mx = document.createElement('button');
   mx.type = 'button'; mx.className = 'ghost edittoggle'; mx.textContent = 'Edit';
   $('.matrix-head').insertBefore(mx, $('#closeMatrix'));
@@ -61,6 +61,7 @@ function injectToggles() {
   $('#view .vbar').after(mini());
   $('#card .vbar').after(mini());
   $('.matrix-head').after(mini());
+  $('#homeBar').after(mini());
   refreshEditedFlag();
 }
 

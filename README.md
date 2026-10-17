@@ -6,8 +6,8 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
     index.html
     .nojekyll
     assets/css/dossier.css
-    assets/js/content.js      narrative copy: pitch, Problem statement, POC/MVP/Production,
-                              pain points, and every interface label (UI_TEXT)
+    assets/js/content.js      narrative copy: pitch, Problem statement slides, POC/MVP/Production
+                              (kept for the journey page), pain points, and every interface label (UI_TEXT)
     assets/js/diagrams.js     J&J, Home Depot, Citibank interactive maps
     assets/js/diagrams2.js    RAG pipeline, CI/CD pipeline
     assets/js/store.js        working copy of all content, browser persistence, undo/redo
@@ -15,14 +15,32 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
     assets/js/app.js          routing, matrix, views, pan/zoom, deck, trace
     assets/js/editor.js       edit mode: in-place text, add/delete/move/connect
 
+## Layout
+
+- **Home** never scrolls. The links bar (Open the matrix, the three companies,
+  the cross-cutting pipelines) sits on top; below it is a carousel: slide 1
+  is the elevator pitch, slides 2–6 are the J&J Problem statement, one step
+  per slide (The problem · The solution · An example · My role · The result).
+  Move with the arrows, the labelled dots, the ← → keys, or a swipe on a
+  phone. Text shrinks to fit the slide, so nothing ever scrolls.
+- **The matrix** shows Architecture and Pain points for each company, plus the
+  RAG and CI/CD pipelines. POC / MVP / Production are off the matrix for now;
+  their content stays in `content.js` for the POC → Production journey page.
+  Old links to a phase page open the matrix; the old Problem statement link
+  opens the carousel on slide 2.
+
 ## Editing in the browser
 
 Press **Edit** (top right on every screen). Everything below saves to this
 browser automatically; **Done editing** returns to the presentation view.
 
+- Home carousel: type straight into any slide, no Edit mode needed; it saves
+  as you type and **Reset to original** restores that slide. In Edit mode the
+  slide labels and titles are editable too, and **+ Add a slide after** /
+  **× Delete this slide** change the Problem statement steps.
 - Every text on every screen: click it to edit in place. That includes the
   home labels and quick links, the matrix title and cell labels, page titles
-  and subtitles, section headings, the Problem statement, card titles and
+  and subtitles, section headings, card titles and
   sub-labels, and the card panel headings. Enter or clicking away commits.
   `+` adds a row after, `×` deletes it. Inside links and buttons, a click
   places the caret instead of navigating while edit mode is on.
@@ -116,7 +134,8 @@ layout that is showing. Node `shape` can be `cyl` or `diamond`; a band with
 ## Keyboard
 
 `f` fit · `t` trace · `n` names only · `Esc` back / close ·
-arrow keys page the detail deck.
+arrow keys page the detail deck, and the home carousel (`Home` / `End` jump
+to the first / last slide).
 
 ## Notes
 

@@ -10,69 +10,215 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 const CO = () => OZ.data.companies;
 const DG = () => OZ.data.diagrams;
 
-/* ---------------- pitch ---------------- */
+/* ---------------- home: pitch + problem statement carousel ----------------
+   Slide 1 is the elevator pitch (its own browser save, as before); the rest are
+   the J&J problem statement, one step per slide, saved with the other content.
+   Every slide is click-and-type; labels are editable in Edit mode. The text
+   shrinks to fit so the page never scrolls. */
 const pitchEl = $('#pitchText'), wcEl = $('#wordCount'), flagEl = $('#saveFlag');
+const track = $('#carTrack');
 const mem = {};
 const pstore = {
   get(k) { try { const v = localStorage.getItem(k); return v === null ? (k in mem ? mem[k] : null) : v; } catch (e) { return k in mem ? mem[k] : null; } },
   set(k, v) { mem[k] = v; try { localStorage.setItem(k, v); } catch (e) {} }
 };
-function countWords(t) { const s = t.trim(); return s ? s.split(/\s+/).length : 0; }
-function updateCount() { const n = countWords(pitchEl.innerText); wcEl.textContent = n + (n === 1 ? ' word' : ' words'); }
-function sizePitch() {
-  const el = pitchEl, wrap = document.querySelector('.home-wrap'), home = document.getElementById('home');
-  if (!el || !wrap || !home) return;
-  el.style.maxHeight = 'none';
-  const cs = getComputedStyle(wrap);
-  let other = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-  Array.from(wrap.children).forEach(ch => {
-    const s = getComputedStyle(ch);
-    if (s.position === 'absolute' || s.display === 'none') return;
-    other += ch.offsetHeight + parseFloat(s.marginTop) + parseFloat(s.marginBottom);
-  });
-  other -= el.offsetHeight;                       /* the body's own share */
-  const pitch = el.closest('.pitch');
-  const pitchHead = pitch ? pitch.querySelector('.pitch-head') : null;
-  const pitchFoot = pitch ? pitch.querySelector('.pitch-foot') : null;
-  const chrome = (pitchHead ? pitchHead.offsetHeight : 0) + (pitchFoot ? pitchFoot.offsetHeight : 0) + 2;
-  const avail = home.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - chrome - 6;
-  el.style.maxHeight = Math.max(140, avail) + 'px';
-}
 /* v2 keeps its own pitch; the first time, it starts from the pitch saved by the original site */
 const PITCH_KEY = 'oz.v2.pitch';
+const PROBLEM_CO = 'jj';
+const PRP = `companies.${PROBLEM_CO}.problem`;
+const PR = () => (CO()[PROBLEM_CO] || {}).problem || null;
+const PSLIDES = () => { const p = PR(); return p && Array.isArray(p.slides) ? p.slides : []; };
+const car = { idx: 0, pending: null };
+
+function countWords(t) { const s = t.trim(); return s ? s.split(/\s+/).length : 0; }
+function flashSaved() { flagEl.classList.add('flash'); setTimeout(() => flagEl.classList.remove('flash'), 900); }
+const slides = () => $$('#carTrack .slide');
+const plain = h => String(h == null ? '' : h).replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/"/g, '');
+/* what the browser leaves in a contenteditable: keep bold, italic and line breaks */
+function cleanText(html) {
+  return html.replace(/<div><br><\/div>/g, '<br>').replace(/<div>/g, '<br>').replace(/<\/div>/g, '')
+    .replace(/<(?!\/?(b|i|em|strong|br)\b)[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ')
+    .replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/g, '');
+}
+/* the shipped version of a problem slide, matched by its id (added slides have none) */
+function shippedSlide(i) {
+  const cur = PSLIDES()[i]; if (!cur || !cur.id) return null;
+  return (OZ.shippedAt(`${PRP}.slides`) || []).find(s => s.id === cur.id) || null;
+}
+
+/* largest type that fits the slide, between 12px and a size set by the slide width */
+function fitSlide(s) {
+  if (!s) return;
+  const inner = s.querySelector('.sl-inner');
+  const cs = getComputedStyle(s);
+  const H = s.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const W = s.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  if (!inner || H <= 0 || W <= 0) return;
+  const isPitch = s.dataset.k === 'pitch';
+  /* cap: big on a laptop, and never so big that a line drops below ~45 characters */
+  const max = Math.min(isPitch ? 32 : 28, Math.max(16, W / (isPitch ? 22 : 24)));
+  const fits = fs => { inner.style.fontSize = fs + 'px'; return inner.offsetHeight <= H; };
+  s.classList.remove('overflow');
+  if (fits(max)) return;
+  let lo = 12, hi = max;
+  if (!fits(lo)) { s.classList.add('overflow'); return; }
+  for (let k = 0; k < 8; k++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+  fits(Math.floor(lo * 4) / 4);
+}
+function fitAll() { if (SCREENS.home.hidden) return; slides().forEach(fitSlide); }
+
+function updateFoot() {
+  const s = slides()[car.idx]; if (!s) return;
+  const t = s.querySelector('.sl-text');
+  const n = countWords(t ? t.innerText : '');
+  wcEl.textContent = n + (n === 1 ? ' word' : ' words');
+  $('#resetSlide').hidden = car.idx > 0 && !shippedSlide(car.idx - 1);
+  let tools = '';
+  if (OZ.editing) {
+    const tpl = JSON.stringify({ id: '', label: 'New step', text: 'New slide' }).replace(/'/g, '&#39;');
+    const i = car.idx - 1;
+    if (i >= 0) tools = `<button type="button" class="rt wide" data-act="add" data-arr="${PRP}.slides" data-i="${i}" data-tpl='${tpl}'>+ Add a slide after</button>` +
+      `<button type="button" class="rt wide del" data-act="del" data-arr="${PRP}.slides" data-i="${i}">× Delete this slide</button>`;
+    else if (!PSLIDES().length && PR()) tools = `<button type="button" class="rt wide" data-act="add" data-arr="${PRP}.slides" data-i="-1" data-tpl='${tpl}'>+ Add a slide</button>`;
+  }
+  $('#carTools').innerHTML = tools;
+}
+function markDots() {
+  $$('#carDots .cd').forEach((d, k) => { const on = k === car.idx; d.classList.toggle('on', on); d.setAttribute('aria-current', on ? 'step' : 'false'); });
+  const n = slides().length;
+  $$('#carDots .cdn.prev, #carPrev').forEach(b => { b.disabled = car.idx === 0; });
+  $$('#carDots .cdn.next, #carNext').forEach(b => { b.disabled = car.idx >= n - 1; });
+}
+function buildDots() {
+  const labels = [OZ.tv('home.pitchTitle')].concat(PSLIDES().map(s => s.label));
+  $('#carDots').innerHTML = `<button type="button" class="cdn prev" aria-label="Previous slide">&#8249;</button>` +
+    labels.map((l, k) => `<button type="button" class="cd" data-k="${k}" aria-label="${plain(l)}"><i></i><span>${l == null ? '' : l}</span></button>`).join('') +
+    `<button type="button" class="cdn next" aria-label="Next slide">&#8250;</button>`;
+  markDots();
+}
+function go(i, instant) {
+  const all = slides(), n = all.length;
+  i = Math.max(0, Math.min(i, n - 1));
+  car.idx = i;
+  if (instant) track.classList.add('instant');
+  track.style.transform = `translateX(${-i * 100}%)`;
+  if (instant) { void track.offsetWidth; track.classList.remove('instant'); }
+  all.forEach((s, k) => {
+    const on = k === i;
+    s.classList.toggle('on', on); s.inert = !on;
+    s.setAttribute('aria-hidden', on ? 'false' : 'true');
+    s.setAttribute('aria-label', `${k + 1} of ${n}`);
+  });
+  if (i === 0) { $('#carTitle').innerHTML = OZ.t('home.pitchTitle'); $('#carSub').innerHTML = ''; }
+  else { $('#carTitle').innerHTML = OZ.t('home.problemTitle'); $('#carSub').innerHTML = OZ.ed(PR().title, `${PRP}.title`); }
+  $('#carCount').textContent = `${i + 1} / ${n}`;
+  markDots();
+  updateFoot();
+}
+function buildSlides() {
+  slides().slice(1).forEach(s => s.remove());
+  track.insertAdjacentHTML('beforeend', PSLIDES().map((s, i) => `
+    <div class="slide" data-k="${i}" role="group" aria-roledescription="slide">
+      <div class="sl-inner">
+        <div class="sl-step"><span class="sl-num">${String(i + 1).padStart(2, '0')}</span><span class="sl-label">${OZ.ed(s.label, `${PRP}.slides.${i}.label`)}</span></div>
+        <div class="sl-text" data-i="${i}" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="${plain(s.label)}">${s.text == null ? '' : s.text}</div>
+      </div>
+    </div>`).join(''));
+  if (car.pending !== null) { car.idx = car.pending; car.pending = null; }
+  buildDots();
+  go(car.idx, true);
+  fitAll();
+}
+
 function initPitch() {
   const saved = pstore.get(PITCH_KEY) ?? pstore.get('oz.pitch');
   pitchEl.innerHTML = saved !== null ? saved : PITCH_DEFAULT;
-  updateCount();
   let t;
   pitchEl.addEventListener('input', () => {
-    updateCount(); clearTimeout(t);
-    t = setTimeout(() => { pstore.set(PITCH_KEY, pitchEl.innerHTML); flagEl.classList.add('flash'); setTimeout(() => flagEl.classList.remove('flash'), 900); }, 500);
+    updateFoot(); fitSlide(pitchEl.closest('.slide')); clearTimeout(t);
+    t = setTimeout(() => { pstore.set(PITCH_KEY, pitchEl.innerHTML); flashSaved(); }, 500);
   });
-  $('#resetPitch').addEventListener('click', () => { pitchEl.innerHTML = PITCH_DEFAULT; pstore.set(PITCH_KEY, PITCH_DEFAULT); updateCount(); sizePitch(); });
-  requestAnimationFrame(sizePitch);
+
+  /* problem statement slides: type straight into them */
+  let timer = null, snapped = false;
+  const saveSlide = el => {
+    OZ.set(`${PRP}.slides.${el.dataset.i}.text`, cleanText(el.innerHTML)); OZ.save();
+    document.body.classList.toggle('has-edits', OZ.hasEdits()); flashSaved();
+  };
+  track.addEventListener('focusin', e => { if (e.target.matches('.sl-text[data-i]') && !snapped) { OZ.snapshot(); snapped = true; } });
+  track.addEventListener('input', e => {
+    const el = e.target.closest('.sl-text[data-i]'); if (!el) return;
+    updateFoot(); fitSlide(el.closest('.slide'));
+    clearTimeout(timer); timer = setTimeout(() => saveSlide(el), 400);
+  });
+  track.addEventListener('focusout', e => {
+    if (!e.target.matches('.sl-text[data-i]')) return;
+    clearTimeout(timer); saveSlide(e.target); snapped = false;
+  });
+
+  $('#resetSlide').addEventListener('click', () => {
+    const s = slides()[car.idx]; if (!s) return;
+    if (car.idx === 0) { pitchEl.innerHTML = PITCH_DEFAULT; pstore.set(PITCH_KEY, PITCH_DEFAULT); }
+    else {
+      const sh = shippedSlide(car.idx - 1); if (!sh) return;
+      OZ.snapshot(); OZ.set(`${PRP}.slides.${car.idx - 1}.text`, sh.text); OZ.save();
+      s.querySelector('.sl-text').innerHTML = sh.text;
+      document.body.classList.toggle('has-edits', OZ.hasEdits());
+    }
+    updateFoot(); fitSlide(s); flashSaved();
+  });
+
+  /* navigation: arrows, dots, swipe (keys are handled with the other shortcuts) */
+  $('#carPrev').addEventListener('click', () => go(car.idx - 1));
+  $('#carNext').addEventListener('click', () => go(car.idx + 1));
+  $('#carDots').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.classList.contains('cd')) go(Number(b.dataset.k));
+    else go(car.idx + (b.classList.contains('next') ? 1 : -1));
+  });
+  let sw = null;
+  const view = $('#carView');
+  view.addEventListener('touchstart', e => { sw = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
+  view.addEventListener('touchend', e => {
+    if (!sw) return; const t = e.changedTouches[0]; const dx = t.clientX - sw.x, dy = t.clientY - sw.y; sw = null;
+    const sel = window.getSelection && window.getSelection();
+    if (sel && !sel.isCollapsed) return;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4) go(car.idx + (dx < 0 ? 1 : -1));
+  }, { passive: true });
+
+  /* Edit mode: land on the right slide after adding or deleting one (runs before the editor rebuilds) */
+  document.addEventListener('click', e => {
+    const b = OZ.editing && e.target.closest && e.target.closest('#carTools [data-act]'); if (!b) return;
+    const i = Number(b.dataset.i);
+    car.pending = b.dataset.act === 'add' ? (i < 0 ? slides().length : i + 2) : Math.min(car.idx, slides().length - 2);
+  });
+  /* a renamed step shows up in the dots once its edit is saved */
+  document.addEventListener('focusout', e => {
+    if (e.target.classList && e.target.classList.contains('ed') && e.target.closest('#home')) setTimeout(buildDots, 0);
+  });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
 }
 
 /* ---------------- home labels ---------------- */
 const QUICK = [['jj', '#/jj/architecture'], ['hd', '#/hd/architecture'], ['citi', '#/citi/architecture']];
 function buildHome() {
-  $('#pitchLabel').innerHTML = OZ.t('home.pitchTitle');
   $('#statusTxt').innerHTML = OZ.t('home.status');
   $('#pitchHint').innerHTML = OZ.t('home.hint');
+  $('#resetSlide').innerHTML = OZ.t('home.reset');
   $('#openMatrix').innerHTML = OZ.t('home.cta');
   $('#quicknav').innerHTML = QUICK.map(([id, href]) => {
     const c = CO()[id];
     return `<a class="qn" href="${href}"><b>${OZ.ed(c.kicker, `companies.${id}.kicker`)}</b><span>${OZ.ed(c.name, `companies.${id}.name`)}</span></a>`;
   }).join('') + `<a class="qn wide" href="#/sys/rag"><b>${OZ.t('home.cross.0')}</b><span>${OZ.t('home.cross.1')}</span></a>`;
+  buildSlides();
 }
 
 /* ---------------- matrix ---------------- */
+/* POC / MVP / Production are off the matrix for now (the POC → Production journey
+   page will bring them back); their content stays in the data. The problem
+   statement lives on the home page. */
 const SECTIONS = [
   { id: 'architecture', g: '▤', map: true },
-  { id: 'problem', g: '◈' },
-  { id: 'poc', g: '◔' },
-  { id: 'mvp', g: '◑' },
-  { id: 'prod', g: '●' },
   { id: 'pain', g: '⚠' }
 ];
 function buildMatrix() {
@@ -82,8 +228,7 @@ function buildMatrix() {
   ['jj', 'hd', 'citi'].forEach(id => {
     const c = CO()[id];
     html += `<section class="mrow"><div class="mrow-head"><h3>${OZ.ed(c.name, `companies.${id}.name`)}</h3><p>${OZ.ed(c.kicker, `companies.${id}.kicker`)} · ${OZ.ed(c.tag, `companies.${id}.tag`)}</p></div><div class="mrow-cells">`;
-    const sections = SECTIONS.filter(s => s.id !== 'problem' || c.problem);
-    sections.forEach(s => {
+    SECTIONS.forEach(s => {
       html += `<a class="mcell${s.map ? ' map' : ''}" href="#/${id}/${s.id}"><span class="g">${s.g}</span><span class="t">${OZ.t(`matrix.sections.${s.id}.0`)}</span><span class="d">${OZ.t(`matrix.sections.${s.id}.1`)}</span></a>`;
     });
     html += `</div></section>`;
@@ -96,6 +241,7 @@ function buildMatrix() {
 }
 
 /* ---------------- narrative views ---------------- */
+/* phase pages (POC / MVP / Production): not linked for now, kept for the journey page */
 function renderPhase(coId, secId) {
   const c = CO()[coId], p = c.phases[secId];
   const P = `companies.${coId}.phases.${secId}`;
@@ -149,17 +295,6 @@ function renderPain(coId) {
   });
   h += '</div>' + OZ.addTool(P, ['Layer', 'Title', 'What hurt.', 'What fixed it.'], 'Add a pain point') + '</div>';
   $('#vBody').innerHTML = h;
-  $('#vBody').scrollTop = 0;
-}
-
-function renderProblem(coId) {
-  const c = CO()[coId], pr = c.problem, P = `companies.${coId}.problem`;
-  $('#vCo').innerHTML = OZ.ed(c.name, `companies.${coId}.name`);
-  $('#vSec').innerHTML = OZ.ed(pr.label, `${P}.label`);
-  $('#vSub').innerHTML = OZ.ed(pr.sub, `${P}.sub`);
-  $('#vBody').innerHTML = `<div class="vinner problem-view"><div class="blk problem-hero"><h4>${OZ.ed(pr.eyebrow, `${P}.eyebrow`)}</h4><h3>${OZ.ed(pr.title, `${P}.title`)}</h3><div class="problem-copy">` +
-    pr.paragraphs.map((x, i) => `<p>${OZ.ed(x, `${P}.paragraphs.${i}`)}${OZ.rowTools(`${P}.paragraphs`, i, 'New paragraph')}</p>`).join('') +
-    `</div>${OZ.addTool(`${P}.paragraphs`, 'New paragraph', 'Add a paragraph')}</div></div>`;
   $('#vBody').scrollTop = 0;
 }
 
@@ -540,9 +675,14 @@ function show(name) {
   Object.entries(SCREENS).forEach(([k, el]) => { const on = k === name; el.hidden = !on; el.classList.toggle('on', on); });
 }
 function route() {
-  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  let parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  /* retired pages: the problem statement moved to the home carousel; the phase pages are off for now */
+  if (parts.length > 1 && CO()[parts[0]]) {
+    if (parts[1] === 'problem') { car.pending = 1; history.replaceState(null, '', location.pathname + location.search + '#/'); parts = []; }
+    else if (['poc', 'mvp', 'prod'].includes(parts[1])) { location.replace('#/matrix'); return; }
+  }
   current = { screen: 'home', parts, prev: current.screen };
-  if (!parts.length) { show('home'); buildHome(); buildMatrix(); requestAnimationFrame(sizePitch); return; }
+  if (!parts.length) { show('home'); buildHome(); buildMatrix(); requestAnimationFrame(fitAll); return; }
   if (parts[0] === 'matrix') { current.screen = 'matrix'; buildMatrix(); show('matrix'); return; }
   if (parts[0] === 'sys' && DG()[parts[1]]) {
     if (parts[2]) { current.screen = 'card'; openCard(parts[1], parts.slice(2)); return; }
@@ -557,8 +697,6 @@ function route() {
       current.screen = 'diagram'; show('diagram'); openDiagram(co, keep); return;
     }
     if (sec === 'pain') { current.screen = 'view'; show('view'); renderPain(co); return; }
-    if (sec === 'problem' && CO()[co].problem) { current.screen = 'view'; show('view'); renderProblem(co); return; }
-    if (['poc', 'mvp', 'prod'].includes(sec)) { current.screen = 'view'; show('view'); renderPhase(co, sec); return; }
   }
   location.hash = '';
 }
@@ -568,9 +706,7 @@ function rerender() {
   if (current.screen === 'diagram') { openDiagram(D.id, true); return; }
   if (current.screen === 'card') { openCard(current.cardId, current.cardRest); return; }
   if (current.screen === 'view') {
-    if (p[1] === 'problem') renderProblem(p[0]);
-    else if (p[1] === 'pain') renderPain(p[0]);
-    else renderPhase(p[0], p[1]);
+    if (p[1] === 'pain') renderPain(p[0]);
     return;
   }
   if (current.screen === 'home') buildHome();
@@ -580,7 +716,7 @@ function rerender() {
 window.addEventListener('hashchange', route);
 window.addEventListener('resize', () => {
   if (!SCREENS.diagram.hidden) fit();
-  if (!SCREENS.home.hidden) sizePitch();
+  if (!SCREENS.home.hidden) fitAll();
 });
 $('#closeMatrix').addEventListener('click', () => { location.hash = ''; });
 $$('[data-nav]').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.nav === 'matrix' ? '/matrix' : ''; }));
@@ -600,6 +736,12 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') { $('#cNext').click(); return; }
     if (e.key === 'ArrowLeft') { $('#cPrev').click(); return; }
     return;
+  }
+  if (!SCREENS.home.hidden) {
+    const k = { ArrowRight: 1, PageDown: 1, ArrowLeft: -1, PageUp: -1 }[e.key];
+    if (k) { e.preventDefault(); go(car.idx + k); return; }
+    if (e.key === 'Home') { go(0); return; }
+    if (e.key === 'End') { go(slides().length - 1); return; }
   }
   if (e.key === 'Escape') {
     if (OZ.editing && window.Editor && Editor.onEscape()) return;

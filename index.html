@@ -19,28 +19,46 @@
 <main id="home" class="screen on">
   <div class="home-wrap">
 
-    <section class="pitch" aria-labelledby="pitchLabel">
-      <div class="pitch-head">
-        <h2 id="pitchLabel">Elevator pitch</h2>
+    <header class="home-bar" id="homeBar">
+      <a class="cta" id="openMatrix" href="#/matrix">Open the matrix</a>
+      <nav class="quicknav" id="quicknav" aria-label="Jump to a company">
+        <a class="qn" href="#/jj/architecture"><b>Pharma</b><span>Johnson &amp; Johnson</span></a>
+        <a class="qn" href="#/hd/architecture"><b>Retail</b><span>Home Depot</span></a>
+        <a class="qn" href="#/citi/architecture"><b>Banking</b><span>Citibank</span></a>
+        <a class="qn wide" href="#/sys/rag"><b>Cross-cutting</b><span>RAG pipeline · CI/CD</span></a>
+      </nav>
+    </header>
+
+    <!-- elevator pitch first, then the problem statement one step per slide -->
+    <section class="carousel" id="carousel" aria-roledescription="carousel" aria-label="Elevator pitch and problem statement">
+      <div class="car-head">
+        <h2 id="carTitle">Elevator pitch</h2>
+        <span class="car-sub" id="carSub"></span>
         <span class="statusline"><span class="dot"></span> <span id="statusTxt">Systems · live</span></span>
         <span class="saveflag" id="saveFlag">Saved</span>
+        <span class="car-count" id="carCount" aria-live="polite">1 / 6</span>
       </div>
-      <div class="pitch-body" id="pitchText" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true"></div>
-      <div class="pitch-foot">
+      <div class="car-view" id="carView">
+        <button type="button" class="car-arrow prev" id="carPrev" aria-label="Previous slide">&#8249;</button>
+        <div class="car-track" id="carTrack">
+          <div class="slide pitch-slide" data-k="pitch" role="group" aria-roledescription="slide">
+            <div class="sl-inner">
+              <div class="sl-text pitch-body" id="pitchText" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Elevator pitch"></div>
+            </div>
+          </div>
+          <!-- problem statement slides are added by app.js -->
+        </div>
+        <button type="button" class="car-arrow next" id="carNext" aria-label="Next slide">&#8250;</button>
+      </div>
+      <div class="car-foot">
         <span id="wordCount">0 words</span>
         <span class="hint" id="pitchHint">Editable · saves to this browser</span>
-        <button type="button" class="linkish" id="resetPitch">Reset to original</button>
+        <span class="car-tools" id="carTools"></span>
+        <button type="button" class="linkish" id="resetSlide">Reset to original</button>
       </div>
     </section>
 
-    <a class="cta" id="openMatrix" href="#/matrix">Open the matrix</a>
-
-    <nav class="quicknav" id="quicknav" aria-label="Jump to a company">
-      <a class="qn" href="#/jj/architecture"><b>Pharma</b><span>Johnson &amp; Johnson</span></a>
-      <a class="qn" href="#/hd/architecture"><b>Retail</b><span>Home Depot</span></a>
-      <a class="qn" href="#/citi/architecture"><b>Banking</b><span>Citibank</span></a>
-      <a class="qn wide" href="#/sys/rag"><b>Cross-cutting</b><span>RAG pipeline · CI/CD</span></a>
-    </nav>
+    <nav class="car-dots" id="carDots" aria-label="Slides"></nav>
 
   </div>
 </main>

@@ -13,15 +13,16 @@ const COMPANIES = {
     tag: 'Multi-agent GenAI · AKS',
     problem: {
       eyebrow: 'General use case',
-    label: 'General use case',
-    sub: 'Why J&J needed a new knowledge platform',
-    title: 'Why J&J needed a new platform',
-    paragraphs: [
-      'At Johnson &amp; Johnson, a major challenge was that critical safety information was scattered across dozens of systems — clinical trials, adverse event reports, regulatory documents, and internal knowledge bases. When a potential safety signal appeared — an early warning that a drug or medical product might be causing an unexpected side effect or risk — analysts had to manually search through all of it to piece together the full picture. That process was slow, inconsistent, and risky, especially in an environment where missing a signal could impact patient safety and regulatory compliance.',
-      'The Generative AI platform was built to solve that. Instead of forcing teams to search in ten places, we created a single system that could retrieve, reason over, and summarize trusted internal evidence in seconds.',
-      'For example, if a pharmacovigilance analyst suspects a drug might be linked to liver toxicity, they can ask the system a direct question. Behind the scenes, the platform retrieves relevant clinical trial data, adverse event cases, and regulatory history, filters it by drug and condition, and feeds only that verified evidence into the language model. The response they get is not a guess — it is a grounded, traceable summary of what J&amp;J already knows, with citations to the original sources.',
-      'As the lead engineer, I was responsible for making sure this entire flow worked end-to-end: ingestion of sensitive documents, secure and compliant retrieval, hybrid search accuracy, and safe generation of answers. I worked with safety scientists, regulatory teams, and cloud engineers to ensure the system was not only technically sound, but trustworthy enough to support real safety decisions.',
-      'The result was a dramatic reduction in time spent searching for information, fewer duplicated analyses, and faster, more confident safety and regulatory decisions. We effectively turned J&amp;J’s fragmented knowledge into a single, reliable source of truth that teams could query in real time — which is exactly what modern enterprise AI is supposed to do.'
+      label: 'General use case',
+      sub: 'Why J&J needed a new knowledge platform',
+      title: 'Why J&J needed a new platform',
+    /* the problem statement is told on the home page, one slide per step */
+    slides: [
+      { id: 'problem', label: 'The problem', text: 'At Johnson &amp; Johnson, a major challenge was that critical safety information was scattered across dozens of systems — clinical trials, adverse event reports, regulatory documents, and internal knowledge bases. When a potential safety signal appeared — an early warning that a drug or medical product might be causing an unexpected side effect or risk — analysts had to manually search through all of it to piece together the full picture. That process was slow, inconsistent, and risky, especially in an environment where missing a signal could impact patient safety and regulatory compliance.' },
+      { id: 'solution', label: 'The solution', text: 'The Generative AI platform was built to solve that. Instead of forcing teams to search in ten places, we created a single system that could retrieve, reason over, and summarize trusted internal evidence in seconds.' },
+      { id: 'example', label: 'An example', text: 'For example, if a pharmacovigilance analyst suspects a drug might be linked to liver toxicity, they can ask the system a direct question. Behind the scenes, the platform retrieves relevant clinical trial data, adverse event cases, and regulatory history, filters it by drug and condition, and feeds only that verified evidence into the language model. The response they get is not a guess — it is a grounded, traceable summary of what J&amp;J already knows, with citations to the original sources.' },
+      { id: 'role', label: 'My role', text: 'As the lead engineer, I was responsible for making sure this entire flow worked end-to-end: ingestion of sensitive documents, secure and compliant retrieval, hybrid search accuracy, and safe generation of answers. I worked with safety scientists, regulatory teams, and cloud engineers to ensure the system was not only technically sound, but trustworthy enough to support real safety decisions.' },
+      { id: 'result', label: 'The result', text: 'The result was a dramatic reduction in time spent searching for information, fewer duplicated analyses, and faster, more confident safety and regulatory decisions. We effectively turned J&amp;J’s fragmented knowledge into a single, reliable source of truth that teams could query in real time — which is exactly what modern enterprise AI is supposed to do.' }
     ]
     },
     phases: {
@@ -279,14 +280,16 @@ const COMPANIES = {
 const UI_TEXT = {
   home: {
     pitchTitle: 'Elevator pitch',
+    problemTitle: 'Problem statement',
     status: 'Systems · live',
     hint: 'Editable · saves to this browser',
+    reset: 'Reset to original',
     cta: 'Open the matrix',
     cross: ['Cross-cutting', 'RAG pipeline · CI/CD']
   },
   matrix: {
     title: 'The matrix',
-    sub: 'Company × maturity, plus the two pipelines that cut across all of them.',
+    sub: 'Each company’s architecture and pain points, plus the two pipelines that cut across all of them.',
     sections: {
       architecture: ['Architecture', 'Interactive map'],
       problem: ['Problem statement', 'Why the platform exists'],

@@ -70,8 +70,37 @@ window.OZ = (() => {
       else if (isObj(t[k]) && isObj(s[k])) fillMissing(t[k], s[k]);
     });
   }
+  /* the problem statement used to be a list of paragraphs on its own page; it is now
+     one slide per step on the home page. Saved paragraphs keep their text. */
+  function problemToSlides(d) {
+    Object.keys(d.companies || {}).forEach(id => {
+      const pr = d.companies[id] && d.companies[id].problem;
+      if (!isObj(pr) || !Array.isArray(pr.paragraphs)) return;
+      if (!Array.isArray(pr.slides)) {
+        const base = ((shipped.companies[id] || {}).problem || {}).slides || [];
+        pr.slides = pr.paragraphs.map((text, i) => base[i]
+          ? { id: base[i].id, label: base[i].label, text }
+          : { id: '', label: 'Step ' + (i + 1), text });
+      }
+      delete pr.paragraphs;
+    });
+  }
+  /* shipped labels that changed in this build: replaced only where the save still has the old wording */
+  const LABEL_UPDATES = [
+    ['matrix.sub', 'Company × maturity, plus the two pipelines that cut across all of them.']
+  ];
+  function updateLabels(d) {
+    LABEL_UPDATES.forEach(([path, old]) => {
+      const ks = path.split('.'); const last = ks.pop();
+      const o = ks.reduce((o, k) => (o && isObj(o[k]) ? o[k] : null), d.ui);
+      const n = ks.reduce((o, k) => (o ? o[k] : null), shipped.ui);
+      if (o && n && o[last] === old) o[last] = n[last];
+    });
+  }
   function complete(d) {
     if (!isObj(d.ui)) d.ui = {};
+    problemToSlides(d);
+    updateLabels(d);
     fillMissing(d.ui, shipped.ui);
     fillMissing(d.companies, shipped.companies);
     Object.keys(shipped.diagrams).forEach(id => { if (!d.diagrams[id]) d.diagrams[id] = clone(shipped.diagrams[id]); });
@@ -139,6 +168,7 @@ window.OZ = (() => {
 
     /* dotted-path helpers: 'companies.jj.phases.poc.list.2' */
     get(path) { return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), OZ.data); },
+    shippedAt(path) { return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), shipped); },
     set(path, val) {
       const ks = path.split('.'); const last = ks.pop();
       const o = ks.reduce((o, k) => (o[k] == null ? (o[k] = {}) : o[k]), OZ.data);
