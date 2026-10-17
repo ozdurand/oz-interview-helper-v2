@@ -173,6 +173,19 @@ window.OZ = (() => {
     dirty: false,
 
     save() { ls.set(KEY, JSON.stringify(OZ.data)); OZ.dirty = false; },
+
+    /* one file with everything: shipped content plus every edit (the pitch is added by the app) */
+    exportData() {
+      return { format: 'oz-dossier-export', version: 1, exportedAt: new Date().toISOString(), hasEdits: OZ.hasEdits(), data: clone(OZ.data) };
+    },
+    /* accept an export file (or bare data) and make it the working copy; returns false if it isn't one */
+    importData(obj) {
+      const d = obj && obj.format === 'oz-dossier-export' ? obj.data : obj;
+      if (!valid(d)) return false;
+      OZ.data = complete(clone(d));
+      OZ.save();
+      return true;
+    },
     reset() { OZ.data = clone(shipped); ls.del(KEY); ls.set(MIGRATED, '1'); OZ.undoStack = []; OZ.redoStack = []; },
     hasEdits() { return ls.get(KEY) !== null; },
 

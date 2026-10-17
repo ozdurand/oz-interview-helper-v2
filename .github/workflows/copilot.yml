@@ -1,0 +1,36 @@
+name: Copilot backend — tests and retrieval check
+
+on:
+  push:
+    branches: [main]
+    paths: ["copilot/**", "assets/js/**", "index.html", ".github/workflows/copilot.yml"]
+  pull_request:
+    paths: ["copilot/**", "assets/js/**", "index.html", ".github/workflows/copilot.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: copilot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Shipped export is up to date with the site
+        run: |
+          node scripts/export_shipped.js /tmp/shipped.json
+          cmp data/shipped-export.json /tmp/shipped.json || { echo "::error::copilot/data/shipped-export.json is stale — run: node copilot/scripts/export_shipped.js"; exit 1; }
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - name: Retrieval test
+        run: |
+          python -m eval.run_eval --no-embeddings --report /tmp/report.md
+          cat /tmp/report.md >> "$GITHUB_STEP_SUMMARY"

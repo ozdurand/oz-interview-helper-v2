@@ -80,6 +80,11 @@ browser automatically; **Done editing** returns to the presentation view.
   (auto elbow, flipped elbow, straight).
 - On Citibank and CI/CD, the form has an "Only for this variant" switch so a
   text edit can apply to just the active workload or agent.
+- **Export** downloads everything — shipped content, every edit and the pitch —
+  as one file; **Import…** loads such a file back (Undo reverts it). **Send to
+  copilot** posts the same file to your copilot backend (`copilot/`), which
+  rebuilds its knowledge base from it; the first time it asks for the backend
+  address and sign-in token.
 - **Undo / Redo** (Ctrl-Z / Ctrl-Shift-Z) across the session. **Reset all**
   discards every browser edit and returns to the shipped content in the
   `content.js` / `diagrams*.js` files.
@@ -169,3 +174,9 @@ to the first / last slide).
   in-memory fallback so it degrades quietly in sandboxed previews.
 - Fonts load from Google Fonts; the page falls back to system serif/mono if
   they're blocked.
+
+## Copilot backend
+
+`copilot/` holds the phase 0 backend: the dossier as a searchable knowledge
+base behind a signed-in API, with a retrieval test. It is not published to
+GitHub Pages. See `copilot/README.md`.

@@ -1059,6 +1059,8 @@ document.addEventListener('keydown', e => {
 /* ---------------- expose for the editor ---------------- */
 OZ.ui = { D, layout, stage, canvas, paint, fit, applyTransform, toDiagram, openDiagram, buildRail, buildTools, buildChips, buildHeader,
           rerender, route, openDeck, closeDeck, deck, scrim, stopTrace, current: () => current };
+OZ.ui.getPitch = () => pitchEl.innerHTML;
+OZ.ui.setPitch = html => { pitchEl.innerHTML = html; pstore.set(PITCH_KEY, html); updateFoot(); fitAll(); };
 
 /* ---------------- boot ---------------- */
 initPitch();

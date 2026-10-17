@@ -44,6 +44,9 @@ function injectToggles() {
       <button type="button" class="tool" data-e="undo" title="Ctrl+Z">Undo</button>
       <button type="button" class="tool" data-e="redo" title="Ctrl+Shift+Z">Redo</button>
       <button type="button" class="tool danger" data-e="reset">Reset all</button>
+      <button type="button" class="tool" data-e="exportfile" title="Download everything, edits included, as one file">Export</button>
+      <button type="button" class="tool" data-e="importfile" title="Load an exported file">Import…</button>
+      <button type="button" class="tool" data-e="sync" title="Send everything to your copilot backend">Send to copilot</button>
     </span>`;
   $('#dTools').after(bar);
   bar.addEventListener('click', e => {
@@ -54,7 +57,9 @@ function injectToggles() {
   /* undo/redo/reset on narrative + matrix screens */
   const mini = () => {
     const d = document.createElement('div'); d.className = 'editmini'; d.hidden = true;
-    d.innerHTML = `<button type="button" class="ghost sm" data-e="undo">Undo</button><button type="button" class="ghost sm" data-e="redo">Redo</button><button type="button" class="ghost sm danger" data-e="reset">Reset all</button><span class="editstatus">Click any text to edit · + and × on rows</span>`;
+    d.innerHTML = `<button type="button" class="ghost sm" data-e="undo">Undo</button><button type="button" class="ghost sm" data-e="redo">Redo</button><button type="button" class="ghost sm danger" data-e="reset">Reset all</button>` +
+      `<span class="editsep"></span><button type="button" class="ghost sm" data-e="exportfile" title="Download everything, edits included, as one file">Export</button><button type="button" class="ghost sm" data-e="importfile" title="Load an exported file">Import…</button><button type="button" class="ghost sm" data-e="sync" title="Send everything to your copilot backend">Send to copilot</button>` +
+      `<span class="editstatus">Click any text to edit · + and × on rows</span>`;
     d.addEventListener('click', e => { const b = e.target.closest('[data-e]'); if (b) ACTIONS[b.dataset.e](); });
     return d;
   };
@@ -320,8 +325,63 @@ const ACTIONS = {
   reset() {
     if (!confirm('Throw away every edit in this browser and go back to the shipped content?')) return;
     OZ.reset(); D().sel = null; ui().closeDeck(); ui().rerender(); refreshEditedFlag(); refreshSelButtons();
+  },
+  exportfile() {
+    const blob = new Blob([JSON.stringify(exportAll(), null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `oz-dossier-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  },
+  importfile() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'application/json,.json';
+    inp.addEventListener('change', () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      f.text().then(txt => {
+        let obj; try { obj = JSON.parse(txt); } catch (e) { alert('That file is not valid JSON.'); return; }
+        const when = obj && obj.exportedAt ? ` exported ${new Date(obj.exportedAt).toLocaleString()}` : '';
+        if (!confirm(`Replace the current content with ${f.name}${when}? Undo brings it back.`)) return;
+        OZ.snapshot();
+        if (!OZ.importData(obj)) { OZ.undoStack.pop(); alert('That file is not a dossier export.'); return; }
+        if (obj.pitch) ui().setPitch(obj.pitch);
+        D().sel = null; ui().closeDeck(); ui().rerender(); refreshEditedFlag(); refreshSelButtons();
+      });
+    });
+    inp.click();
+  },
+  /* send everything to the copilot backend (phase 0: /ingest rebuilds its knowledge base) */
+  sync() {
+    let cfg = copilotCfg();
+    if (!cfg.url || !cfg.token) { cfg = askCopilotCfg(cfg); if (!cfg) return; }
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 30000);
+    fetch(cfg.url.replace(/\/+$/, '') + '/ingest', {
+      method: 'POST', signal: ctl.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.token },
+      body: JSON.stringify(exportAll())
+    }).then(r => r.json().catch(() => ({})).then(j => ({ ok: r.ok, status: r.status, j })))
+      .then(({ ok, status, j }) => {
+        if (ok) alert(`Sent. The copilot knowledge base now has ${j.entries} entries.`);
+        else if (status === 401 || status === 403) { if (confirm('The copilot refused the sign-in token. Change the address or token?')) askCopilotCfg(cfg); }
+        else alert(`The copilot answered with an error (${status}).`);
+      })
+      .catch(() => { if (confirm(`Couldn’t reach ${cfg.url}. Change the address or token?`)) askCopilotCfg(cfg); })
+      .finally(() => clearTimeout(t));
   }
 };
+function exportAll() { const x = OZ.exportData(); x.pitch = ui().getPitch(); return x; }
+const COPILOT_KEY = 'oz.v2.copilot';
+function copilotCfg() { try { return JSON.parse(localStorage.getItem(COPILOT_KEY)) || {}; } catch (e) { return {}; } }
+function askCopilotCfg(cur) {
+  const url = prompt('Copilot backend address (for example https://copilot.example.com):', (cur && cur.url) || '');
+  if (!url) return null;
+  const token = prompt('Copilot sign-in token:', (cur && cur.token) || '');
+  if (!token) return null;
+  const cfg = { url: url.trim(), token: token.trim() };
+  try { localStorage.setItem(COPILOT_KEY, JSON.stringify(cfg)); } catch (e) {}
+  return cfg;
+}
 function addBand(w, h) {
   OZ.snapshot();
   const c = viewportCenter();

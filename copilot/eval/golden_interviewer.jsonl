@@ -1,0 +1,50 @@
+{"q": "Walk me through how a request flows through your multi-agent platform.", "accept": ["jj/orch", "jj/code", "jj/L_orch", "jj/glance", "jj/ingress", "eval/jj/overview"], "project": "jj"}
+{"q": "Why did you put a message bus between the orchestrator and the agents instead of calling them directly?", "accept": ["jj/sb", "jj/ingress", "jj/aoai"]}
+{"q": "How did you do canary releases when your agents consume from a queue?", "accept": ["jj/sb", "cicd/c_route", "cicd/c_canary", "cicd/del"]}
+{"q": "Why does your orchestrator only have a single tool?", "accept": ["jj/orch", "jj/code", "jj/glance"]}
+{"q": "How do you stop the model from skipping the validation steps?", "accept": ["jj/code", "jj/orch"]}
+{"q": "How did you handle conversation memory across turns?", "accept": ["jj/redis", "jj/code"]}
+{"q": "Where do you keep the audit trail, and why not just rely on logs?", "accept": ["jj/cosmos"]}
+{"q": "How do you make sure the knowledge agent can't read the regulated documents?", "accept": ["jj/secgov", "jj/gidx", "jj/kidx", "jj/ds"]}
+{"q": "Why didn't you use a graph database for the medical ontology?", "accept": ["jj/closure", "jj/L_onto", "jj/onto", "jj/loader"]}
+{"q": "If someone asks about a parent concept, how do you also find documents about its child terms?", "accept": ["jj/closure", "jj/know", "jj/stamp", "jj/L_onto"]}
+{"q": "What was the hardest problem in your document ingestion pipeline?", "accept": ["jj/docint", "jj/L_ing", "rag/r_parse"]}
+{"q": "How did you evaluate the drug safety agent?", "accept": ["jj/ds", "cicd/c_fixture"]}
+{"q": "What happened when the model you launched on was retired?", "accept": ["jj/aoai", "jj/glance"]}
+{"q": "Roughly how much does one query cost you in model calls?", "accept": ["jj/glance", "jj/aoai"]}
+{"q": "How do you know your verifier isn't just agreeing with the generator?", "accept": ["jj/qa"]}
+{"q": "What did you monitor in production and what did you alert on?", "accept": ["jj/mon", "rag/r_ev4", "cicd/c_slo"]}
+{"q": "What happens when a scientist misspells a medical term?", "accept": ["jj/dict", "jj/onto"]}
+{"q": "Why two separate search indexes instead of one?", "accept": ["jj/gidx", "jj/L_ret", "jj/kidx"]}
+{"q": "Tell me about the results you achieved on the J&J platform.", "accept": ["jj/glance", "jj/users", "jj/phase/prod", "home/problem/result"], "project": "jj"}
+{"q": "How are secrets and service identities handled inside the cluster?", "accept": ["jj/secgov"]}
+{"q": "How did you combine keyword search with vector search?", "accept": ["hd/rrf", "hd/Q", "hd/faiss", "hd/es", "jj/L_ret", "rag/r_hyb", "rag/r_fuse"]}
+{"q": "Why not just normalize the BM25 and cosine scores and add them together?", "accept": ["hd/rrf", "rag/r_fuse"]}
+{"q": "What did the cross-encoder actually add?", "accept": ["hd/ce", "rag/r_rank"]}
+{"q": "How did you measure relevance before shipping a ranking change?", "accept": ["hd/E", "hd/bench", "hd/metrics"]}
+{"q": "What was the business impact of the hybrid search project?", "accept": ["hd/glance", "hd/E", "hd/users", "hd/metrics", "hd/phase/prod", "hd/phase/mvp"], "project": "hd"}
+{"q": "Why did you self-host the embedding model instead of calling an API?", "accept": ["hd/model", "hd/emb", "hd/sec"]}
+{"q": "Customers use different words than the product catalog \u2014 how did you deal with that?", "accept": ["hd/qpre", "hd/es", "hd/faiss", "hd/pain/1"]}
+{"q": "How did you keep the two search indexes consistent with each other?", "accept": ["hd/dual", "hd/I"], "project": "hd"}
+{"q": "Why was the LLM answer generation only added at the very end?", "accept": ["hd/rag", "hd/Q"], "project": "hd"}
+{"q": "How did you keep search latency inside the budget?", "accept": ["hd/fastapi", "hd/Q"], "project": "hd"}
+{"q": "How did you handle files that were labeled with the wrong type?", "accept": ["hd/router"], "project": "hd"}
+{"q": "What would you not do again on that search project?", "accept": ["hd/src", "hd/I"], "project": "hd"}
+{"q": "How did you get models off the data scientists' laptops?", "accept": ["citi/*/dev", "citi/*/R2", "citi/fraud/train"], "project": "citi"}
+{"q": "How did you deal with training-serving skew?", "accept": ["citi/fraud/fs", "citi/fraud/R1", "citi/fraud/sfc", "citi/pain/0"]}
+{"q": "Fraud labels arrive months later \u2014 how did you split your training data?", "accept": ["citi/fraud/labels", "citi/fraud/tset", "citi/fraud/R1"]}
+{"q": "How did you work with model risk management under SR 11-7?", "accept": ["citi/fraud/g2", "citi/credit/g2", "citi/*/R2", "citi/aml/g2"]}
+{"q": "Why not automatically redeploy a model when you detect drift?", "accept": ["citi/fraud/q", "citi/aml/q", "citi/fraud/R3", "citi/credit/q"]}
+{"q": "How do you produce reason codes for credit declines?", "accept": ["citi/credit/seg", "citi/credit/g1", "citi/credit/s2", "citi/credit/train", "citi/credit/R3"]}
+{"q": "Why use a logistic scorecard instead of gradient boosting for credit risk?", "accept": ["citi/credit/train", "citi/credit/seg"]}
+{"q": "Can your AML model close alerts automatically?", "accept": ["citi/aml/s2", "citi/aml/R3"]}
+{"q": "How do you evaluate a model when only one in a thousand alerts is real?", "accept": ["citi/aml/alerts", "citi/aml/R1", "citi/aml/g1", "citi/aml/aq"]}
+{"q": "Tell me about migrating your ML orchestration to SageMaker Pipelines.", "accept": ["citi/*/cp"]}
+{"q": "How do you roll back a bad fraud model in production?", "accept": ["citi/fraud/mid", "citi/fraud/s1", "citi/fraud/R3"], "project": "citi"}
+{"q": "How do you stop retrieved documents from injecting instructions into the agent?", "accept": ["cicd/c_red"]}
+{"q": "Why do you sign your container images?", "accept": ["cicd/c_sign", "cicd/c_admit", "cicd/c_build", "jj/secgov"]}
+{"q": "How do you decide whether a prompt change is allowed to ship?", "accept": ["cicd/qual", "cicd/c_golden", "cicd/c_faith", "cicd/c_pr", "cicd/int"]}
+{"q": "How can you trust an LLM-as-a-judge?", "accept": ["rag/r_ev2", "rag/ql", "eval/jj/layer2", "eval/generic/layer2", "eval/jj/ragas", "eval/generic/ragas"]}
+{"q": "What do you do when the retrieved context doesn't fit in the context window?", "accept": ["rag/r_asm"]}
+{"q": "How would you notice that your search index has gone stale?", "accept": ["rag/r_write", "hd/pg", "jj/kidx", "rag/ix"]}
+{"q": "What's the difference between context precision and context recall?", "accept": ["eval/jj/ragas", "eval/generic/ragas", "rag/r_ev1", "eval/jj/layer1", "eval/generic/layer1"]}
