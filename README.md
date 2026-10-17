@@ -10,6 +10,7 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
                               (kept for the journey page), pain points, and every interface label (UI_TEXT)
     assets/js/diagrams.js     J&J, Home Depot, Citibank interactive maps
     assets/js/diagrams2.js    RAG pipeline, CI/CD pipeline
+    assets/js/interview.js    each box and layer as interview answers (J&J so far)
     assets/js/store.js        working copy of all content, browser persistence, undo/redo
     assets/js/engine.js       SVG renderer (nodes, edges, bands, wrapping)
     assets/js/app.js          routing, matrix, views, pan/zoom, deck, trace
@@ -29,6 +30,16 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
   Old links to a phase page open the matrix; the old Problem statement link
   opens the carousel on slide 2.
 
+- **Card pages** (tap a box or layer on a map) open as interview answers when
+  the box has them: **Say it in 20 seconds** (a layer: **Walk me through this
+  layer**), **They’ll ask** — likely questions, click one or press its number
+  to open the answer — **Numbers to drop**, **Stack** and **If they push**. An
+  answer tagged **to confirm** is built on general reasoning rather than your
+  own notes; check it matches what you did before you use it. **Reference**
+  (top right) switches to the original technical panels and stays switched
+  until you switch back. J&J has interview answers; the other maps show the
+  original panels until theirs are written.
+
 ## Editing in the browser
 
 Press **Edit** (top right on every screen). Everything below saves to this
@@ -38,6 +49,9 @@ browser automatically; **Done editing** returns to the presentation view.
   as you type and **Reset to original** restores that slide. In Edit mode the
   slide labels and titles are editable too, and **+ Add a slide after** /
   **× Delete this slide** change the Problem statement steps.
+- Interview cards: in Edit mode every question and answer is open and
+  editable; `+` / `×` add or remove questions and numbers, and ⚑ marks or
+  clears **to confirm** on an answer.
 - Every text on every screen: click it to edit in place. That includes the
   home labels and quick links, the matrix title and cell labels, page titles
   and subtitles, section headings, card titles and
@@ -113,6 +127,10 @@ object). `band` must match a band id. `acc` tints the border: 1 amber, 2 teal,
 **Add an edge:** `['from_id','to_id','optional label','dash']`. Routing is
 automatic — right-to-left, left-to-right and vertical elbows are all handled.
 
+**Interview answers:** add an entry to `INTERVIEW` in `interview.js`, keyed
+like `cards.js` (`'jj/sb'`, or `'citi/fraud/g1'` for a per-workload layout):
+`{ short, qa: [{ q, a, check }], nums: [[value, label]], push: { q, a, check } }`.
+
 **Add a whole diagram:** add a key to `DIAGRAMS` and a matrix cell in
 `buildMatrix()` in `app.js`.
 
@@ -134,7 +152,7 @@ layout that is showing. Node `shape` can be `cyl` or `diamond`; a band with
 ## Keyboard
 
 `f` fit · `t` trace · `n` names only · `Esc` back / close ·
-arrow keys page the detail deck, and the home carousel (`Home` / `End` jump
+`1`–`9` open that question on a card page · arrow keys page the detail deck, the card pages and the home carousel (`Home` / `End` jump
 to the first / last slide).
 
 ## Notes

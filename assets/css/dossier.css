@@ -602,3 +602,87 @@ svg.editing .edge-hit{pointer-events:stroke}
   .cd{padding:4px 10px}
 }
 @media (max-height:560px) and (max-width:760px){.slide{padding:10px 16px}}
+
+/* ---------------- card page · interview view ---------------- */
+.cbody.iv-mode{padding-bottom:22px}
+.ivcard{--ivs:1;font-size:calc(16px * var(--ivs));display:flex;flex-direction:column;gap:1.1em}
+.ivcard h4{font-family:'JetBrains Mono',monospace;font-size:max(10px,.66em);letter-spacing:2px;color:var(--teal);font-weight:500;text-transform:uppercase}
+.ivcard p{font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif}
+.iv-short{
+  background:var(--panel);border:1px solid var(--line-soft);border-left:3px solid var(--amber);border-radius:12px;
+  padding:1em 1.4em 1.1em;
+}
+.iv-short h4{color:var(--amber);margin-bottom:.55em}
+.iv-short p{font-size:1.2em;line-height:1.5;color:var(--ink);max-width:62em}
+.iv-grid{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(0,1fr);gap:1.1em;align-items:start}
+.iv-ask,.iv-sec{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px}
+.iv-ask{border-top:3px solid var(--teal)}
+.iv-ask > h4,.iv-sec > h4{padding:.95em 1.4em .85em;border-bottom:1px solid var(--line-soft)}
+.iv-list{display:flex;flex-direction:column}
+.iv-q{border-bottom:1px solid var(--line-soft)}
+.iv-q:last-child{border-bottom:0}
+.iv-qh{
+  display:flex;align-items:center;gap:.8em;padding:.8em 1.4em;cursor:pointer;
+  font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;font-size:1.02em;font-weight:600;line-height:1.35;color:var(--ink-dim);
+  transition:background .15s,color .15s;outline:none;
+}
+.iv-qh:hover{background:var(--panel-2);color:var(--ink)}
+.iv-qh:focus-visible{box-shadow:inset 0 0 0 2px var(--teal)}
+.iv-n{
+  flex:none;width:1.6em;height:1.6em;border-radius:50%;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;font-size:.72em;font-weight:500;color:var(--ink-faint);
+}
+.iv-qt{flex:1;min-width:0}
+.iv-chev{flex:none;color:var(--ink-faint);font-size:1.3em;line-height:1;transition:transform .2s}
+.iv-q.open .iv-qh{color:var(--ink)}
+.iv-q.open .iv-n{border-color:var(--amber);color:var(--amber)}
+.iv-q.open .iv-chev{transform:rotate(90deg);color:var(--amber)}
+.iv-a{display:none;padding:0 1.4em 1.05em calc(1.4em + 2.4em)}
+.iv-q.open .iv-a{display:block}
+.iv-a p{font-size:1em;line-height:1.62;color:var(--ink)}
+.iv-flag{
+  flex:none;font-family:'JetBrains Mono',monospace;font-size:max(9px,.62em);font-weight:500;letter-spacing:1px;text-transform:uppercase;
+  color:var(--amber);border:1px solid rgba(242,169,59,.45);border-radius:999px;padding:.15em .7em;white-space:nowrap;
+}
+.iv-chk{
+  flex:none;width:1.7em;height:1.7em;border-radius:6px;border:1px dashed var(--line);background:none;
+  color:var(--ink-faint);cursor:pointer;font-size:.8em;line-height:1;
+}
+.iv-chk.on{border-style:solid;border-color:var(--amber);color:var(--amber)}
+.iv-main,.iv-side{display:flex;flex-direction:column;gap:1.1em;min-width:0}
+.iv-nums{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-soft);border-radius:0 0 12px 12px;overflow:hidden}
+.iv-num{background:var(--panel);padding:.75em 1.1em .8em;min-width:0}
+.iv-nums .iv-num:last-child:nth-child(odd){grid-column:1 / -1}
+.iv-num b{display:block;font-family:'JetBrains Mono',monospace;font-size:1.12em;font-weight:500;color:var(--amber);line-height:1.25;overflow-wrap:anywhere}
+.iv-num span{display:block;font-size:.76em;color:var(--ink-dim);line-height:1.4;margin-top:.2em}
+.iv-stack{padding:.8em 1.4em .9em;display:flex;flex-direction:column;gap:.55em}
+.iv-stack div{display:grid;grid-template-columns:minmax(5.5em,auto) 1fr;gap:.9em;align-items:baseline}
+.iv-stack b{font-size:.66em;letter-spacing:1.2px;color:var(--ink-faint);font-weight:500;text-transform:uppercase}
+.iv-stack span{font-size:.84em;color:var(--ink);line-height:1.45;min-width:0;overflow-wrap:anywhere}
+.iv-push{border-left:3px solid var(--violet)}
+.iv-push > h4{color:var(--violet)}
+.iv-push p{padding:0 1.4em;font-size:.93em;line-height:1.58;color:var(--ink)}
+.iv-push p.pq{padding-top:.85em;margin-bottom:.45em;font-weight:600;color:var(--ink);display:flex;gap:.6em;align-items:baseline;flex-wrap:wrap}
+.iv-push p:last-child{padding-bottom:1em;color:var(--ink-dim)}
+.ivcard .rowtools{margin-left:.4em}
+.ivcard .rt.wide{margin:.7em 1.4em .9em}
+.editing .iv-qh{cursor:default}
+.editing .iv-chev{display:none}
+.cview[aria-pressed="true"]{border-color:var(--teal);color:var(--teal)}
+@media (max-width:1180px){
+  .iv-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+}
+@media (max-width:760px){
+  .ivcard{gap:12px}
+  .iv-short{padding:13px 16px 14px}
+  .iv-short p{font-size:16px}
+  .iv-grid{grid-template-columns:1fr;gap:12px}
+  .iv-qh{padding:12px 15px;font-size:15px}
+  .iv-a{padding:0 15px 14px 15px}
+  .iv-a p{font-size:15px}
+  .iv-ask > h4,.iv-sec > h4{padding:12px 15px}
+  .iv-stack,.iv-push p{padding-left:15px;padding-right:15px}
+  #card .vbar-actions{grid-template-columns:repeat(4,1fr)}
+  #card .vbar-actions .ghost{padding:9px 4px}
+}

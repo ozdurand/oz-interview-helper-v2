@@ -441,8 +441,12 @@ function openCard(id, rest) {
   else nodeId = rest[0];
   /* make sure the map state matches so Back returns to the right place */
   if (D.id !== id) { D.dgm = g; D.id = id; D.variant = variant || (g.variantGroup ? g.variantGroup.options[0].id : null); D.depth = g.depthGroup ? g.depthGroup.options[g.depthGroup.options.length - 1].id : 3; D.lay = layout(); }
-  else if (variant && D.variant !== variant) { D.variant = variant; D.lay = layout(); }
-  if (!D.lay) D.lay = layout();
+  else {
+    /* always read the current data: undo, redo and reset replace it */
+    D.dgm = g;
+    if (variant && D.variant !== variant) D.variant = variant;
+    D.lay = layout();
+  }
   const out = Engine.render(D.lay, { variant: g.layouts ? null : D.variant, depth: D.depth });
   D.byId = out.byId;
   D.order = out.nodes.filter(n => (n.depth || 1) <= D.depth).map(n => n.id).concat((D.lay.bands || []).filter(b => b.detail).map(b => b.id));
@@ -477,6 +481,105 @@ function itemPath(id, item, variant) {
     sub: o && o.sub !== undefined ? `${p}.variants.${v}.sub` : p + '.sub'
   };
 }
+
+/* ---------- interview view of a card ----------
+   The card opens as interview answers when it has them (detail.iv); the
+   Reference switch shows the original technical panels. One question is open at
+   a time; the type shrinks so the page fits the screen with any question open. */
+const CARDVIEW_KEY = 'oz.v2.cardview';
+const IVS = { view: (() => { try { return localStorage.getItem(CARDVIEW_KEY) || 'interview'; } catch (e) { return 'interview'; } })(), open: 0, key: null };
+const ivEl = $('#cIV');
+
+function renderInterview(d, P, isBand) {
+  const iv = d.iv || {}, ed = OZ.editing, IP = P + '.iv';
+  const E = (v, p) => OZ.ed(v == null ? '' : v, p);
+  const qa = Array.isArray(iv.qa) ? iv.qa : [];
+  const nums = Array.isArray(iv.nums) ? iv.nums : [];
+  const st = d.stack || [];
+  const flag = (on, path) => ed
+    ? `<button type="button" class="iv-chk${on ? ' on' : ''}" data-ivchk="${path}" title="${on ? 'Marked to confirm — click to clear' : 'Mark as to confirm'}" aria-pressed="${on ? 'true' : 'false'}">⚑</button>${on ? `<span class="iv-flag">${OZ.t('card.iv.check')}</span>` : ''}`
+    : (on ? `<span class="iv-flag">${OZ.tv('card.iv.check')}</span>` : '');
+
+  let h = `<section class="iv-short${isBand ? ' layer' : ''}"><h4>${OZ.t(isBand ? 'card.iv.walk' : 'card.iv.short')}</h4><p>${E(iv.short, IP + '.short')}</p></section>`;
+  h += `<div class="iv-grid"><div class="iv-main"><section class="iv-ask"><h4>${OZ.t('card.iv.ask')}</h4><div class="iv-list">`;
+  qa.forEach((x, i) => {
+    const open = ed || i === IVS.open;
+    h += `<div class="iv-q${open ? ' open' : ''}" data-i="${i}">
+      <div class="iv-qh" role="button" tabindex="0" aria-expanded="${open}"><span class="iv-n">${i + 1}</span><span class="iv-qt">${E(x.q, `${IP}.qa.${i}.q`)}</span>${flag(!!x.check, `${IP}.qa.${i}.check`)}${OZ.rowTools(IP + '.qa', i, { q: 'New question', a: 'Answer' })}<span class="iv-chev" aria-hidden="true">›</span></div>
+      <div class="iv-a"><p>${E(x.a, `${IP}.qa.${i}.a`)}</p></div></div>`;
+  });
+  h += `</div>${OZ.addTool(IP + '.qa', { q: 'New question', a: 'Answer' }, 'Add a question')}</section>`;
+  if (iv.push || ed) {
+    const pu = iv.push || {};
+    h += `<section class="iv-sec iv-push"><h4>${OZ.t('card.iv.push')}</h4><p class="pq">${E(pu.q, IP + '.push.q')}${flag(!!pu.check, IP + '.push.check')}</p><p>${E(pu.a, IP + '.push.a')}</p></section>`;
+  }
+  h += `</div><aside class="iv-side">`;
+  if (nums.length || ed) {
+    h += `<section class="iv-sec"><h4>${OZ.t('card.iv.nums')}</h4><div class="iv-nums">` +
+      nums.map((n, i) => `<div class="iv-num"><b>${E(n[0], `${IP}.nums.${i}.0`)}</b><span>${E(n[1], `${IP}.nums.${i}.1`)}${OZ.rowTools(IP + '.nums', i, ['0', 'what it is'])}</span></div>`).join('') +
+      `</div>${OZ.addTool(IP + '.nums', ['0', 'what it is'], 'Add a number')}</section>`;
+  }
+  if (st.length || ed) {
+    h += `<section class="iv-sec"><h4>${OZ.t('card.iv.stack')}</h4><div class="iv-stack">` +
+      st.map((s, i) => `<div><b>${E(s[0], `${P}.stack.${i}.0`)}</b><span>${E(s[1], `${P}.stack.${i}.1`)}${OZ.rowTools(P + '.stack', i, ['Key', 'Value'])}</span></div>`).join('') +
+      `</div>${OZ.addTool(P + '.stack', ['Key', 'Value'], 'Add a row')}</section>`;
+  }
+  return h + '</aside></div>';
+}
+
+/* the page must fit with any one question open, so size for the tallest case */
+function fitInterview() {
+  const body = $('.cbody'), inner = $('#card .cinner');
+  if (!body || !inner || ivEl.hidden || SCREENS.card.hidden) return;
+  ivEl.style.setProperty('--ivs', 1);
+  if (OZ.editing || innerWidth < 760) return;
+  const cs = getComputedStyle(body);
+  const avail = body.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 2;
+  const qs = Array.from(ivEl.querySelectorAll('.iv-q'));
+  const was = qs.findIndex(q => q.classList.contains('open'));
+  const tallest = s => {
+    ivEl.style.setProperty('--ivs', s);
+    if (!qs.length) return inner.scrollHeight;
+    let m = 0;
+    qs.forEach((q, k) => { qs.forEach((o, j) => o.classList.toggle('open', j === k)); m = Math.max(m, inner.scrollHeight); });
+    return m;
+  };
+  let scale = 1;
+  if (tallest(1) > avail) {
+    let lo = 0.72, hi = 1;
+    if (tallest(lo) > avail) scale = lo;
+    else { for (let k = 0; k < 7; k++) { const mid = (lo + hi) / 2; if (tallest(mid) <= avail) lo = mid; else hi = mid; } scale = Math.floor(lo * 100) / 100; }
+  }
+  ivEl.style.setProperty('--ivs', scale);
+  qs.forEach((o, j) => o.classList.toggle('open', j === was));
+}
+function openQuestion(i) {
+  const qs = Array.from(ivEl.querySelectorAll('.iv-q'));
+  if (!qs.length || OZ.editing) return;
+  if (i < 0 || i >= qs.length) return;
+  IVS.open = qs[i].classList.contains('open') ? -1 : i;
+  qs.forEach((q, j) => { const on = j === IVS.open; q.classList.toggle('open', on); q.querySelector('.iv-qh').setAttribute('aria-expanded', on); });
+}
+ivEl.addEventListener('click', e => {
+  const chk = e.target.closest('[data-ivchk]');
+  if (chk && OZ.editing) {
+    e.preventDefault(); OZ.snapshot();
+    const p = chk.dataset.ivchk; if (OZ.get(p)) OZ.set(p, 0); else OZ.set(p, 1);
+    OZ.save(); document.body.classList.toggle('has-edits', OZ.hasEdits()); rerender(); return;
+  }
+  if (e.target.closest('.ed, .rowtools, .rt')) return;
+  const qh = e.target.closest('.iv-qh'); if (!qh) return;
+  openQuestion(Number(qh.parentElement.dataset.i));
+});
+ivEl.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('iv-qh')) { e.preventDefault(); openQuestion(Number(e.target.parentElement.dataset.i)); }
+});
+$('#cView').addEventListener('click', e => {
+  if (OZ.editing && e.target.closest('.ed')) return;
+  IVS.view = IVS.view === 'reference' ? 'interview' : 'reference';
+  try { localStorage.setItem(CARDVIEW_KEY, IVS.view); } catch (err) {}
+  rerender();
+});
 
 function renderCard(id, item, variant) {
   const g = DG()[id];
@@ -535,6 +638,19 @@ function renderCard(id, item, variant) {
 
   $('#cPanels').innerHTML = p1 + p2 + p3 + p4;
   $('#cRoom').innerHTML = `<h4>${OZ.t('card.room')}</h4><p>${(d.say || ed) ? E(d.say, P + '.say') : '<span class="empty">—</span>'}</p>`;
+
+  /* interview answers first; Reference shows the panels above */
+  const showIV = !!d.iv && IVS.view !== 'reference';
+  const key = P;
+  if (IVS.key !== key) { IVS.key = key; IVS.open = 0; }
+  $('#cView').hidden = !d.iv;
+  $('#cView').innerHTML = OZ.t(showIV ? 'card.iv.reference' : 'card.iv.interview');
+  $('#cView').setAttribute('aria-pressed', showIV ? 'false' : 'true');
+  ivEl.hidden = !showIV;
+  $('#cPanels').hidden = showIV; $('#cRoom').hidden = showIV;
+  $('.cbody').classList.toggle('iv-mode', showIV);
+  if (showIV) { ivEl.innerHTML = renderInterview(d, P, isBand); requestAnimationFrame(fitInterview); }
+  else ivEl.innerHTML = '';
   $('.cbody').scrollTop = 0;
 
   const i = D.order.indexOf(item.id);
@@ -717,6 +833,7 @@ window.addEventListener('hashchange', route);
 window.addEventListener('resize', () => {
   if (!SCREENS.diagram.hidden) fit();
   if (!SCREENS.home.hidden) fitAll();
+  if (!SCREENS.card.hidden) fitInterview();
 });
 $('#closeMatrix').addEventListener('click', () => { location.hash = ''; });
 $$('[data-nav]').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.nav === 'matrix' ? '/matrix' : ''; }));
@@ -732,6 +849,7 @@ document.addEventListener('keydown', e => {
   }
   if (typing) return;
   if (!SCREENS.card.hidden) {
+    if (/^[1-9]$/.test(e.key) && !ivEl.hidden) { openQuestion(Number(e.key) - 1); return; }
     if (e.key === 'Escape') { location.hash = cardHashFor(current.cardId); return; }
     if (e.key === 'ArrowRight') { $('#cNext').click(); return; }
     if (e.key === 'ArrowLeft') { $('#cPrev').click(); return; }

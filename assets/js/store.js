@@ -45,12 +45,18 @@ window.OZ = (() => {
     Object.keys(n).forEach(k => { if (n[k] === '' || (Array.isArray(n[k]) && !n[k].length)) delete n[k]; });
     return n;
   }
+  const IV = typeof INTERVIEW === 'object' ? INTERVIEW : {};
   function applyCards(diagrams) {
     const walk = (lay, prefix) => {
-      (lay.bands || []).forEach(b => { const c = CARDS[prefix + b.id]; if (b.detail || c) b.detail = normDetail(b.detail, c); });
+      (lay.bands || []).forEach(b => {
+        const c = CARDS[prefix + b.id], iv = IV[prefix + b.id];
+        if (b.detail || c || iv) b.detail = normDetail(b.detail, c);
+        if (iv) b.detail.iv = clone(iv);
+      });
       (lay.nodes || []).forEach(nd => {
         const c = CARDS[prefix + nd.id];
         nd.detail = normDetail(nd.detail, c);
+        if (IV[prefix + nd.id]) nd.detail.iv = clone(IV[prefix + nd.id]);
         if (nd.variants) Object.keys(nd.variants).forEach(v => { if (nd.variants[v].detail) nd.variants[v].detail = normDetail(nd.variants[v].detail); });
       });
     };
@@ -97,9 +103,31 @@ window.OZ = (() => {
       if (o && n && o[last] === old) o[last] = n[last];
     });
   }
+  /* interview answers arrive with this build; a saved map gets them for any box or layer
+     that doesn't have them yet, matched by id, without touching anything else it holds */
+  function fillInterview(d) {
+    const each = (lay, fn) => { (lay.bands || []).forEach(b => fn(b, 'bands')); (lay.nodes || []).forEach(n => fn(n, 'nodes')); };
+    const pair = (sl, tl) => {
+      if (!sl || !tl) return;
+      const byId = {}; each(sl, (x, k) => { byId[k + ':' + x.id] = x; });
+      each(tl, (x, k) => {
+        const src = byId[k + ':' + x.id];
+        if (!src || !src.detail || !src.detail.iv) return;
+        if (!isObj(x.detail)) x.detail = {};
+        if (!x.detail.iv) x.detail.iv = clone(src.detail.iv);
+      });
+    };
+    Object.keys(shipped.diagrams).forEach(id => {
+      const s = shipped.diagrams[id], t = d.diagrams[id];
+      if (!t || t === s) return;
+      if (s.layouts) Object.keys(s.layouts).forEach(v => pair(s.layouts[v], t.layouts && t.layouts[v]));
+      else pair(s, t);
+    });
+  }
   function complete(d) {
     if (!isObj(d.ui)) d.ui = {};
     problemToSlides(d);
+    fillInterview(d);
     updateLabels(d);
     fillMissing(d.ui, shipped.ui);
     fillMissing(d.companies, shipped.companies);

@@ -433,6 +433,7 @@ function openForm(sel, opts) {
   $('#deckBody').innerHTML = `<form class="eform" id="eform" autocomplete="off">${body}<div class="fdone"><button type="button" class="cta sm" id="formDone">Done</button><span class="fhint">Changes apply as you type</span></div></form>`;
   $('#deckBody').scrollTop = 0;
   const form = $('#eform');
+  form._target = sel;   /* a form only ever writes to the item it was opened for */
   form.addEventListener('input', () => { clearTimeout(formTimer); formTimer = setTimeout(applyForm, 180); });
   form.addEventListener('change', applyForm);
   $('#formDone').addEventListener('click', () => ui().closeDeck());
@@ -443,9 +444,10 @@ function openForm(sel, opts) {
 
 function applyForm() {
   if (!formTarget) return;
-  const f = $('#eform'); if (!f) return;
+  /* a change event can fire from the previous form while it is being replaced */
+  const f = (this && this.tagName === 'FORM') ? this : $('#eform'); if (!f) return;
   const v = name => { const el = f.elements[name]; return el ? (el.type === 'checkbox' ? el.checked : el.value) : undefined; };
-  const g = dgm(), sel = formTarget;
+  const g = dgm(), sel = f._target || formTarget;
   if (sel.type === 'node') {
     const n = nodeOf(sel.id); if (!n) return;
     const vKey = D().dgm.layouts ? null : D().variant;
@@ -457,6 +459,9 @@ function applyForm() {
     };
     Object.keys(detail).forEach(k => { if (!detail[k] || (Array.isArray(detail[k]) && !detail[k].length)) delete detail[k]; });
     const useVariant = vKey && v('vonly');
+    /* the form covers the reference fields; keep the interview answers it doesn't show */
+    const prev = (useVariant && n.variants && n.variants[vKey] && n.variants[vKey].detail) || n.detail || {};
+    if (prev.iv) detail.iv = prev.iv;
     if (useVariant) {
       n.variants = n.variants || {};
       n.variants[vKey] = { name: v('name').trim() || n.name, sub: v('sub').trim(), detail };
@@ -481,6 +486,7 @@ function applyForm() {
       stack: v('bstack').split('\n').map(x => x.trim()).filter(Boolean).map(l => { const p = l.split('|'); return [p[0].trim(), (p[1] || '').trim()]; }),
       say: v('bsay').trim() };
     Object.keys(bd).forEach(k => { if (!bd[k] || (Array.isArray(bd[k]) && !bd[k].length)) delete bd[k]; });
+    if (b.detail && b.detail.iv) bd.iv = b.detail.iv;
     if (Object.keys(bd).length) b.detail = bd; else delete b.detail;
     growCanvas(); ui().buildRail();
   } else if (sel.type === 'sheet') {

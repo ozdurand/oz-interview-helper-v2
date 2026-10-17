@@ -309,6 +309,17 @@ const UI_TEXT = {
     node: ['The role', 'How it works', 'The decision', 'Stack'],
     band: ['What it’s for', 'What’s inside', 'The boundary', 'Stack'],
     hard: 'Learned the hard way',
-    room: 'In the room'
+    room: 'In the room',
+    iv: {
+      short: 'Say it in 20 seconds',
+      walk: 'Walk me through this layer',
+      ask: 'They’ll ask',
+      nums: 'Numbers to drop',
+      stack: 'Stack',
+      push: 'If they push',
+      check: 'to confirm',
+      interview: 'Interview',
+      reference: 'Reference'
+    }
   }
 };
