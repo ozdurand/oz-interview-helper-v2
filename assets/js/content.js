@@ -289,14 +289,15 @@ const UI_TEXT = {
   },
   matrix: {
     title: 'The matrix',
-    sub: 'Each company’s architecture and pain points, plus the two pipelines that cut across all of them.',
+    sub: 'Each company’s architecture and pain points — and J&amp;J’s evaluation program — plus the two pipelines that cut across all of them.',
     sections: {
       architecture: ['Architecture', 'Interactive map'],
       problem: ['Problem statement', 'Why the platform exists'],
       poc: ['POC', 'Prove it works'],
       mvp: ['MVP', 'Make it real'],
       prod: ['Production', 'Run it at scale'],
-      pain: ['Pain points', 'By layer']
+      pain: ['Pain points', 'By layer'],
+      eval: ['Evaluation', 'RAGAS + the seven layers']
     },
     sysTitle: 'Cross-cutting pipelines',
     sysSub: 'The two systems that show up in every one of these roles',
@@ -305,6 +306,16 @@ const UI_TEXT = {
   },
   phase: { state: 'The state', goal: 'The goal', gate: 'Validation &amp; gate', stack: 'Stack' },
   pain: { title: 'Pain points', sub: 'By layer', pain: 'Pain', fix: 'Fix' },
+  eval: {
+    title: 'Evaluation',
+    modes: ['J&amp;J', 'Generic'],
+    stack: 'The seven layers',
+    legend: ['feeds', 'checks', 'explains'],
+    connects: 'How it connects',
+    layer: 'Layer',
+    gate: 'Release gate',
+    tabs: { layer: 'Layer', ragas: 'RAGAS', golden: 'Golden set', thresholds: 'Thresholds', vs: 'vs DeepEval', read: 'Regressions' }
+  },
   card: {
     node: ['The role', 'How it works', 'The decision', 'Stack'],
     band: ['What it’s for', 'What’s inside', 'The boundary', 'Stack'],

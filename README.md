@@ -11,6 +11,7 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
     assets/js/diagrams.js     J&J, Home Depot, Citibank interactive maps
     assets/js/diagrams2.js    RAG pipeline, CI/CD pipeline
     assets/js/interview.js    every box and layer as interview answers (all five maps)
+    assets/js/evaluation.js   the J&J Evaluation page — RAGAS and the seven layers (J&J + generic)
     assets/js/store.js        working copy of all content, browser persistence, undo/redo
     assets/js/engine.js       SVG renderer (nodes, edges, bands, wrapping)
     assets/js/app.js          routing, matrix, views, pan/zoom, deck, trace
@@ -25,7 +26,14 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
   Move with the arrows, the labelled dots, the ← → keys, or a swipe on a
   phone. Text shrinks to fit the slide, so nothing ever scrolls.
 - **The matrix** shows Architecture and Pain points for each company, plus the
-  RAG and CI/CD pipelines. POC / MVP / Production are off the matrix for now;
+  RAG and CI/CD pipelines. J&J also has **Evaluation**: RAGAS and the seven
+  evaluation layers. The seven layers sit on the left with arcs for how they
+  interact (feeds · checks · explains); click a layer, or press 1–7, to see it
+  and its connections. The panel on the right has tabs for RAGAS, the golden
+  set, thresholds, RAGAS vs DeepEval and reading a regression. A **J&J /
+  Generic** switch swaps between the J&J platform and a version for any RAG
+  system; the choice is remembered. Statements built on general reasoning
+  rather than your notes carry a **to confirm** tag. POC / MVP / Production are off the matrix for now;
   their content stays in `content.js` for the POC → Production journey page.
   Old links to a phase page open the matrix; the old Problem statement link
   opens the carousel on slide 2.

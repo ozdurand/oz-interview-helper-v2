@@ -93,7 +93,8 @@ window.OZ = (() => {
   }
   /* shipped labels that changed in this build: replaced only where the save still has the old wording */
   const LABEL_UPDATES = [
-    ['matrix.sub', 'Company × maturity, plus the two pipelines that cut across all of them.']
+    ['matrix.sub', 'Company × maturity, plus the two pipelines that cut across all of them.'],
+    ['matrix.sub', 'Each company’s architecture and pain points, plus the two pipelines that cut across all of them.']
   ];
   function updateLabels(d) {
     LABEL_UPDATES.forEach(([path, old]) => {

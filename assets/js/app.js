@@ -219,7 +219,8 @@ function buildHome() {
    statement lives on the home page. */
 const SECTIONS = [
   { id: 'architecture', g: '▤', map: true },
-  { id: 'pain', g: '⚠' }
+  { id: 'pain', g: '⚠' },
+  { id: 'eval', g: '◎' }          /* only for a company with an evaluation page (J&J) */
 ];
 function buildMatrix() {
   $('#mTitle').innerHTML = OZ.t('matrix.title');
@@ -228,7 +229,7 @@ function buildMatrix() {
   ['jj', 'hd', 'citi'].forEach(id => {
     const c = CO()[id];
     html += `<section class="mrow"><div class="mrow-head"><h3>${OZ.ed(c.name, `companies.${id}.name`)}</h3><p>${OZ.ed(c.kicker, `companies.${id}.kicker`)} · ${OZ.ed(c.tag, `companies.${id}.tag`)}</p></div><div class="mrow-cells">`;
-    SECTIONS.forEach(s => {
+    SECTIONS.filter(s => s.id !== 'eval' || c.eval).forEach(s => {
       html += `<a class="mcell${s.map ? ' map' : ''}" href="#/${id}/${s.id}"><span class="g">${s.g}</span><span class="t">${OZ.t(`matrix.sections.${s.id}.0`)}</span><span class="d">${OZ.t(`matrix.sections.${s.id}.1`)}</span></a>`;
     });
     html += `</div></section>`;
@@ -280,6 +281,7 @@ function renderPhase(coId, secId) {
 }
 
 function renderPain(coId) {
+  vBody.classList.remove('eval-mode');
   const c = CO()[coId];
   const P = `companies.${coId}.pains`;
   $('#vCo').innerHTML = OZ.ed(c.name, `companies.${coId}.name`);
@@ -297,6 +299,182 @@ function renderPain(coId) {
   $('#vBody').innerHTML = h;
   $('#vBody').scrollTop = 0;
 }
+
+/* ---------------- evaluation page (J&J row) ----------------
+   RAGAS and the seven evaluation layers. Two versions of the content —
+   the J&J platform and a generic RAG system — behind one switch. The layer
+   stack is on the left with arcs for how the layers interact; the panel on
+   the right has a tab per topic. Fits one screen; type shrinks if needed. */
+const EVALMODE_KEY = 'oz.v2.evalmode';
+const EVS = { mode: (() => { try { return localStorage.getItem(EVALMODE_KEY) || 'jj'; } catch (e) { return 'jj'; } })(), sel: null, tab: 'ragas', co: null };
+const EV_TABS = ['layer', 'ragas', 'golden', 'thresholds', 'vs', 'read'];
+const vBody = $('#vBody');
+
+function evCtx() {
+  const all = CO()[EVS.co].eval || {};
+  const mode = all[EVS.mode] ? EVS.mode : 'jj';
+  return { ev: all[mode], P: `companies.${EVS.co}.eval.${mode}`, mode };
+}
+const evFlag = (on, path) => OZ.editing
+  ? `<button type="button" class="iv-chk${on ? ' on' : ''}" data-ivchk="${path}" title="${on ? 'Marked to confirm — click to clear' : 'Mark as to confirm'}" aria-pressed="${on ? 'true' : 'false'}">⚑</button>${on ? `<span class="iv-flag">${OZ.t('card.iv.check')}</span>` : ''}`
+  : (on ? `<span class="iv-flag">${OZ.tv('card.iv.check')}</span>` : '');
+
+function renderEval(coId) {
+  EVS.co = coId;
+  const c = CO()[coId], { ev, P, mode } = evCtx();
+  const E = (v, p) => OZ.ed(v == null ? '' : v, p);
+  vBody.classList.add('eval-mode');
+  $('#vCo').innerHTML = OZ.ed(c.name, `companies.${coId}.name`);
+  $('#vSec').innerHTML = OZ.t('eval.title');
+  $('#vSub').innerHTML = E(ev.sub, P + '.sub');
+  const tags = t => t === 'ragas' ? '<span class="ev-tag ragas">RAGAS</span>' : t === 'hard' ? '<span class="ev-tag hard">PASS / FAIL</span>' : '';
+  const ui = k => OZ.t('eval.' + k);
+  let h = `<div class="ev">
+    <section class="ev-head">
+      <h1>${E(ev.title, P + '.title')}</h1>
+      <p>${E(ev.thesis, P + '.thesis')}</p>
+      <div class="ev-mode" role="group" aria-label="Version">
+        <button type="button" class="ev-m${mode === 'jj' ? ' on' : ''}" data-evmode="jj" aria-pressed="${mode === 'jj'}">${ui('modes.0')}</button>
+        <button type="button" class="ev-m${mode === 'generic' ? ' on' : ''}" data-evmode="generic" aria-pressed="${mode === 'generic'}">${ui('modes.1')}</button>
+      </div>
+    </section>
+    <div class="ev-main">
+      <section class="ev-stack">
+        <div class="ev-rail"><svg id="evRail" aria-hidden="true"></svg></div>
+        <div class="ev-stack-in">
+          <div class="ev-stack-head"><h4>${ui('stack')}</h4>
+            <div class="ev-legend"><span><i class="feed"></i>${ui('legend.0')}</span><span><i class="check"></i>${ui('legend.1')}</span><span><i class="why"></i>${ui('legend.2')}</span></div></div>
+          <div class="ev-layers" id="evLayers">` +
+    ev.layers.map((l, i) => `<div class="ev-layer" role="button" tabindex="0" data-n="${i + 1}">
+            <span class="ev-n">${i + 1}</span>
+            <span class="ev-t"><b>${E(l.name, `${P}.layers.${i}.name`)}</b><span>${E(l.q, `${P}.layers.${i}.q`)}</span></span>
+            <span class="ev-tags">${(l.tags || []).map(tags).join('')}</span></div>`).join('') +
+    `</div></div></section>
+      <section class="ev-side">
+        <div class="ev-tabs" role="tablist">${EV_TABS.map(t => `<button type="button" role="tab" class="ev-tab${t === EVS.tab ? ' on' : ''}" data-evtab="${t}">${ui('tabs.' + t)}</button>`).join('')}</div>
+        <div class="ev-pane" id="evPane"></div>
+      </section>
+    </div>
+    <section class="ev-gate"><h4>${ui('gate')}</h4><span>` +
+    ev.gate.map((g, i) => `${i ? '<em>·</em> ' : ''}${E(g, `${P}.gate.${i}`)}${OZ.rowTools(P + '.gate', i, 'New rule')}`).join(' ') + `</span></section>
+  </div>`;
+  vBody.innerHTML = h;
+  vBody.scrollTop = 0;
+  evPane();
+  requestAnimationFrame(() => { evDraw(); evFit(); });
+}
+
+/* the open tab's content */
+function evPane() {
+  const { ev, P } = evCtx();
+  const E = (v, p) => OZ.ed(v == null ? '' : v, p);
+  const pane = $('#evPane'); if (!pane) return;
+  const table = (key, extra) => {
+    const t = ev[key], n = t.cols.length, TP = `${P}.${key}`;
+    const blank = t.cols.map(() => '…');
+    return `<table class="ev-table ev-${key}"><thead><tr>${t.cols.map((c, j) => `<th>${E(c, `${TP}.cols.${j}`)}</th>`).join('')}</tr></thead><tbody>` +
+      t.rows.map((r, i) => `<tr>${t.cols.map((_, j) => {
+        let v = E(r[j], `${TP}.rows.${i}.${j}`);
+        if (extra) v = extra(j, r[j], v);
+        return `<td>${v}${j === 0 ? evFlag(!!r[n], `${TP}.rows.${i}.${n}`) + OZ.rowTools(TP + '.rows', i, blank) : ''}</td>`;
+      }).join('')}</tr>`).join('') + `</tbody></table>` + OZ.addTool(TP + '.rows', blank, 'Add a row');
+  };
+  const note = key => ev[key].note || OZ.editing ? `<div class="ev-note">${E(ev[key].note, `${P}.${key}.note`)}${evFlag(!!ev[key].noteCheck, `${P}.${key}.noteCheck`)}</div>` : '';
+  let h = '';
+  if (EVS.tab === 'layer') {
+    const n = EVS.sel || 2, l = ev.layers[n - 1], LP = `${P}.layers.${n - 1}`;
+    const links = ev.edges.map((e, i) => [e, i]).filter(([e]) => e[0] === n || e[1] === n);
+    h = `<div class="ev-sub">${OZ.t('eval.layer')} ${n} · ${E(l.name, `${LP}.name`)}</div>
+      <div class="ev-lead">${E(l.lead, `${LP}.lead`)}</div>
+      <div class="ev-body">${E(l.body, `${LP}.body`)}</div>
+      <div class="ev-kv">${l.kv.map((k, i) => `<div><b>${E(k[0], `${LP}.kv.${i}.0`)}</b><span>${E(k[1], `${LP}.kv.${i}.1`)}</span></div>`).join('')}</div>` +
+      (links.length ? `<div class="ev-sub">${OZ.t('eval.connects')}</div><div class="ev-links">` + links.map(([e, i]) =>
+        `<div class="ev-link"><i class="${e[2]}">${OZ.editing
+          ? `${E(e[0], `${P}.edges.${i}.0`)} → ${E(e[1], `${P}.edges.${i}.1`)} · ${E(e[2], `${P}.edges.${i}.2`)} · ${E(e[3], `${P}.edges.${i}.3`)}`
+          : `${+e[0] === n ? '→ ' + e[1] : e[0] + ' →'} ${e[3]}`}</i><span>${E(e[4], `${P}.edges.${i}.4`)}${evFlag(!!e[5], `${P}.edges.${i}.5`)}${OZ.rowTools(P + '.edges', i, [n, n === 7 ? 6 : n + 1, 'feed', 'new link', 'What this connection means.'])}</span></div>`).join('') + '</div>' : '');
+  } else if (EVS.tab === 'ragas') {
+    const R = ev.ragas;
+    h = `<div class="ev-lead">${E(R.lead, `${P}.ragas.lead`)}</div>` +
+      table('ragas', (j, raw, v) => j === 3 ? `<span class="ev-pill${/^yes/i.test(String(raw)) ? ' yes' : ''}">${v}</span>` : v) +
+      `<div class="ev-links">` + R.notes.map((x, i) => `<div class="ev-link"><i class="${x[1]}">${E(x[0], `${P}.ragas.notes.${i}.0`)}</i><span><b>${E(x[2], `${P}.ragas.notes.${i}.2`)}</b> ${E(x[3], `${P}.ragas.notes.${i}.3`)}${OZ.rowTools(P + '.ragas.notes', i, ['note', 'feed', 'Heading.', 'Text.'])}</span></div>`).join('') +
+      `</div>${OZ.addTool(P + '.ragas.notes', ['note', 'feed', 'Heading.', 'Text.'], 'Add a note')}`;
+  } else if (EVS.tab === 'golden') {
+    const G = ev.golden;
+    h = `<div class="ev-lead">${E(G.lead, `${P}.golden.lead`)}</div><ol class="ev-steps">` +
+      G.steps.map((s, i) => `<li><span class="ev-sn">${i + 1}</span><span><b>${E(s[0], `${P}.golden.steps.${i}.0`)}</b>${evFlag(!!s[2], `${P}.golden.steps.${i}.2`)}${OZ.rowTools(P + '.golden.steps', i, ['New step', 'What happens.'])}<br>${E(s[1], `${P}.golden.steps.${i}.1`)}</span></li>`).join('') +
+      `</ol>${OZ.addTool(P + '.golden.steps', ['New step', 'What happens.'], 'Add a step')}${note('golden')}`;
+  } else {
+    h = `<div class="ev-lead">${E(ev[EVS.tab].lead, `${P}.${EVS.tab}.lead`)}</div>${table(EVS.tab)}${note(EVS.tab)}`;
+  }
+  pane.innerHTML = h;
+  pane.scrollTop = 0;
+  vBody.querySelectorAll('.ev-tab').forEach(b => b.classList.toggle('on', b.dataset.evtab === EVS.tab));
+  evMark();
+}
+
+/* arcs on the left of the stack: each connection bends further out the longer it spans */
+function evDraw() {
+  const rail = $('#evRail'), list = $('#evLayers'); if (!rail || !list) return;
+  const { ev } = evCtx();
+  const box = rail.getBoundingClientRect(); if (!box.width) return;
+  const mid = n => { const el = list.children[n - 1]; if (!el) return 0; const r = el.getBoundingClientRect(); return r.top + r.height / 2 - box.top; };
+  const right = box.width - 2;
+  let h = '<defs>' + ['feed', 'check', 'why'].map(k => `<marker id="evah-${k}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="ev-ah-${k}"/></marker>`).join('') + '</defs>';
+  ev.edges.forEach((e, i) => {
+    const a = +e[0], b = +e[1]; if (!(a >= 1 && a <= 7 && b >= 1 && b <= 7) || a === b) return;
+    const k = ['feed', 'check', 'why'].includes(e[2]) ? e[2] : 'feed';
+    const y1 = mid(a) + (a < b ? 5 : -5), y2 = mid(b) + (a < b ? -5 : 5);
+    const x = right - 14 - Math.abs(b - a) * Math.min(11, (box.width - 24) / 7) - (i % 2) * 5;
+    h += `<path class="ev-edge ev-e-${k}" data-i="${i}" d="M${right},${y1} C${x},${y1} ${x},${y2} ${right},${y2}" marker-end="url(#evah-${k})"/>`;
+  });
+  rail.innerHTML = h;
+  evMark();
+}
+function evMark() {
+  const { ev } = evCtx(); const sel = EVS.tab === 'layer' ? (EVS.sel || 2) : EVS.sel;
+  vBody.querySelectorAll('.ev-edge').forEach(p => {
+    const e = ev.edges[p.dataset.i]; const hit = sel && e && (+e[0] === sel || +e[1] === sel);
+    p.classList.toggle('on', !!hit); p.classList.toggle('off', !!sel && !hit);
+  });
+  vBody.querySelectorAll('.ev-layer').forEach(b => {
+    const n = +b.dataset.n; const linked = sel && ev.edges.some(e => (+e[0] === sel && +e[1] === n) || (+e[1] === sel && +e[0] === n));
+    b.classList.toggle('on', n === sel); b.classList.toggle('dim', !!sel && n !== sel && !linked);
+  });
+}
+/* the panel shrinks rather than scrolls (except while editing, and on phones) */
+function evFit() {
+  const pane = $('#evPane'); if (!pane) return;
+  pane.style.zoom = '';
+  if (OZ.editing || innerWidth < 760) return;
+  for (let k = 0; k < 3; k++) {
+    if (pane.scrollHeight <= pane.clientHeight + 1) break;
+    pane.style.zoom = Math.max(0.68, (parseFloat(pane.style.zoom) || 1) * (pane.clientHeight / pane.scrollHeight) * 0.99);
+  }
+}
+function evSelect(n) {
+  if (EVS.sel === n && EVS.tab === 'layer') { EVS.sel = null; EVS.tab = 'ragas'; }
+  else { EVS.sel = n; EVS.tab = 'layer'; }
+  evPane(); evFit();
+}
+vBody.addEventListener('click', e => {
+  if (!vBody.classList.contains('eval-mode')) return;
+  const chk = e.target.closest('[data-ivchk]');
+  if (chk && OZ.editing) {
+    e.preventDefault(); OZ.snapshot();
+    const p = chk.dataset.ivchk; OZ.set(p, OZ.get(p) ? 0 : 1);
+    OZ.save(); document.body.classList.toggle('has-edits', OZ.hasEdits()); evPane(); return;
+  }
+  if (OZ.editing && e.target.closest('.ed, .rowtools, .rt')) return;
+  const m = e.target.closest('[data-evmode]');
+  if (m) { EVS.mode = m.dataset.evmode; try { localStorage.setItem(EVALMODE_KEY, EVS.mode); } catch (err) {} renderEval(EVS.co); return; }
+  const t = e.target.closest('[data-evtab]');
+  if (t) { EVS.tab = t.dataset.evtab; evPane(); evFit(); return; }
+  const l = e.target.closest('.ev-layer');
+  if (l) evSelect(+l.dataset.n);
+});
+vBody.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('ev-layer')) { e.preventDefault(); evSelect(+e.target.dataset.n); }
+});
 
 /* ---------------- diagram view ---------------- */
 const D = {
@@ -813,6 +991,7 @@ function route() {
       current.screen = 'diagram'; show('diagram'); openDiagram(co, keep); return;
     }
     if (sec === 'pain') { current.screen = 'view'; show('view'); renderPain(co); return; }
+    if (sec === 'eval' && CO()[co].eval) { current.screen = 'view'; show('view'); renderEval(co); return; }
   }
   location.hash = '';
 }
@@ -823,6 +1002,7 @@ function rerender() {
   if (current.screen === 'card') { openCard(current.cardId, current.cardRest); return; }
   if (current.screen === 'view') {
     if (p[1] === 'pain') renderPain(p[0]);
+    else if (p[1] === 'eval') renderEval(p[0]);
     return;
   }
   if (current.screen === 'home') buildHome();
@@ -834,6 +1014,7 @@ window.addEventListener('resize', () => {
   if (!SCREENS.diagram.hidden) fit();
   if (!SCREENS.home.hidden) fitAll();
   if (!SCREENS.card.hidden) fitInterview();
+  if (!SCREENS.view.hidden && vBody.classList.contains('eval-mode')) { evDraw(); evFit(); }
 });
 $('#closeMatrix').addEventListener('click', () => { location.hash = ''; });
 $$('[data-nav]').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.nav === 'matrix' ? '/matrix' : ''; }));
@@ -855,6 +1036,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft') { $('#cPrev').click(); return; }
     return;
   }
+  if (!SCREENS.view.hidden && vBody.classList.contains('eval-mode') && /^[1-7]$/.test(e.key)) { evSelect(Number(e.key)); return; }
   if (!SCREENS.home.hidden) {
     const k = { ArrowRight: 1, PageDown: 1, ArrowLeft: -1, PageUp: -1 }[e.key];
     if (k) { e.preventDefault(); go(car.idx + k); return; }
