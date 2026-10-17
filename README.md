@@ -6,7 +6,8 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
     index.html
     .nojekyll
     assets/css/dossier.css
-    assets/js/content.js      narrative copy: pitch, POC/MVP/Production, pain points
+    assets/js/content.js      narrative copy: pitch, Problem statement, POC/MVP/Production,
+                              pain points, and every interface label (UI_TEXT)
     assets/js/diagrams.js     J&J, Home Depot, Citibank interactive maps
     assets/js/diagrams2.js    RAG pipeline, CI/CD pipeline
     assets/js/store.js        working copy of all content, browser persistence, undo/redo
@@ -19,9 +20,14 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
 Press **Edit** (top right on every screen). Everything below saves to this
 browser automatically; **Done editing** returns to the presentation view.
 
-- Narrative pages, matrix labels, diagram titles and chips: click any text to
-  edit it in place. Enter or clicking away commits. `+` adds a row after,
-  `×` deletes it.
+- Every text on every screen: click it to edit in place. That includes the
+  home labels and quick links, the matrix title and cell labels, page titles
+  and subtitles, section headings, the Problem statement, card titles and
+  sub-labels, and the card panel headings. Enter or clicking away commits.
+  `+` adds a row after, `×` deletes it. Inside links and buttons, a click
+  places the caret instead of navigating while edit mode is on.
+- Map title, subtitle, legend, footnote, trace narration and toggle labels:
+  tap the title or legend on the map, or press **Titles & trace…**.
 - Diagram maps: tap a box, layer or arrow to select it. Drag to move, drag the
   amber corner to resize. Double-tap (or **Edit…**) opens the form for its
   text — name, sub-label, border colour, layer, and the full walkthrough card.
@@ -40,6 +46,12 @@ browser automatically; **Done editing** returns to the presentation view.
 
 Edits live in this browser only. Nothing is written back to the repo — to
 make an edit permanent for every device, change the shipped files.
+
+This site and the original dossier share browser storage on
+ozdurand.github.io, so v2 saves under its own keys (`oz.v2.data.v5`, and
+`oz.v2.pitch` for the pitch). On the first visit it copies any edits saved by
+the original site, then never touches that site's data again. **Reset all**
+clears only v2's edits.
 
 ## Editing content (in the files)
 

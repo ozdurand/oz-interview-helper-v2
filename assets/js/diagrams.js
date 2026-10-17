@@ -11,14 +11,14 @@ const DIAGRAMS = {};
 DIAGRAMS.jj = {
  "co": "Johnson &amp; Johnson",
  "sec": "Architecture",
- "sub": "Multi-agent GenAI · AKS · Rev B",
+ "sub": "Multi-agent GenAI · AKS · Rev C",
  "w": 2200,
  "h": 1520,
  "font": 1.45,
  "sheet": {
   "title": "J&amp;J Multi-Agent Platform — Full Architecture",
-  "sub": "Rev B · gpt-5.4 lineup · OpenAI Agents SDK · two vector indexes + closure-table terminology",
-  "note": "15 tools · 5 specialists + orchestrator",
+  "sub": "Rev C · gpt-5.4 lineup · OpenAI Agents SDK · one-tool orchestrator · two vector indexes + closure-table terminology",
+  "note": "11 tools · 5 specialists + orchestrator",
   "foot": "Every claim in a response resolves by correlation ID to its chunks, controlled versions, model deployment, and verifier verdict.",
   "legend": [
    [
@@ -47,7 +47,9 @@ DIAGRAMS.jj = {
   "Azure / AKS",
   "GPT-5.4 lineup",
   "OpenAI Agents SDK",
-  "Service Bus per-agent channels",
+  "One-tool orchestrator",
+  "Service Bus topic per agent",
+  "Redis session store",
   "2 vector indexes",
   "Closure-table terminology",
   "FDA / EMA"
@@ -67,7 +69,7 @@ DIAGRAMS.jj = {
     "does": [
      "Orchestrator plus five specialists",
      "Every service has its own CI/CD path — see the CI/CD pipeline map",
-     "KEDA scales agents on Service Bus queue depth"
+     "KEDA scales each agent on its own subscription’s message count"
     ],
     "say": "Six services on one cluster, released independently."
    }
@@ -88,7 +90,7 @@ DIAGRAMS.jj = {
      "Every chunk carries entity and ancestor IDs, tier and effective date",
      "Filters are applied in the query, never after retrieval"
     ],
-      "say": "Ingestion prepares the evidence, terminology normalizes it, and AI Search retrieves it with filters in the query."
+    "say": "Ingestion prepares the evidence, terminology normalizes it, and AI Search retrieves it with filters in the query."
    }
   },
   {
@@ -107,7 +109,7 @@ DIAGRAMS.jj = {
      "Closure table for ancestor expansion",
      "Both built by the Ontology Loader and versioned per vocabulary release"
     ],
-      "say": "The terminology layer is built during ingestion so AI Search can filter by concepts instead of traversing a graph at query time."
+    "say": "The terminology layer is built during ingestion so AI Search can filter by concepts instead of traversing a graph at query time."
    }
   },
   {
@@ -126,7 +128,7 @@ DIAGRAMS.jj = {
      "A document is embedded exactly once per version",
      "Closure feeds stamping; a vocabulary release triggers a re-stamp"
     ],
-      "say": "Ingestion and ETL turn source documents into versioned, searchable evidence for the AKS services."
+    "say": "Ingestion and ETL turn source documents into versioned, searchable evidence for the AKS services."
    }
   }
  ],
@@ -162,13 +164,13 @@ DIAGRAMS.jj = {
    "sub": "+ WAF",
    "tone": "blue",
    "detail": {
-      "role": "The global, protected entry point in front of the platform.",
+    "role": "The global, protected entry point in front of the platform.",
     "does": [
-       "Terminates TLS and applies WAF rules at the edge",
-       "Routes and load-balances requests to the regional AKS ingress",
-       "Keeps the cluster and agents off the public internet"
+     "Terminates TLS and applies WAF rules at the edge",
+     "Routes and load-balances requests to the regional AKS ingress",
+     "Keeps the cluster and agents off the public internet"
     ],
-      "say": "Front Door is the global, protected entry point; only validated traffic continues to APIM and AKS."
+    "say": "Front Door is the global, protected entry point; only validated traffic continues to APIM and AKS."
    }
   },
   {
@@ -218,17 +220,17 @@ DIAGRAMS.jj = {
    "w": 258,
    "h": 250,
    "name": "At a glance",
-   "sub": "· 6 services on AKS\n· 15 tools total\n· 2 vector indexes\n· 1 closure table\n· 10k+ documents\n· p95 < 900ms",
+   "sub": "· 6 services on AKS\n· 11 tools total\n· 2 vector indexes\n· 1 closure table\n· 10k+ documents\n· p95 < 900ms",
    "tone": "note",
    "detail": {
     "role": "The numbers to have ready before anyone asks.",
     "does": [
      "Six independently deployable services on AKS: orchestrator plus five specialists",
-     "Fifteen tools total — five on the orchestrator, two per specialist",
+     "Eleven tools total — one on the orchestrator (invoke_agent), two per specialist",
      "Two vector indexes and one closure table; no runtime graph",
      "10,000+ documents, p95 under 900 ms end-to-end"
     ],
-    "say": "Six services, fifteen tools, two indexes, one closure table."
+    "say": "Six services, eleven tools, two indexes, one closure table."
    }
   },
   {
@@ -239,14 +241,15 @@ DIAGRAMS.jj = {
    "w": 470,
    "h": 172,
    "name": "LLM Orchestrator",
-   "sub": "gpt-5.4 · OpenAI Agents SDK\ninvoke_agent · validate_output_safety\nload/save_session_context\nemit_orchestration_trace",
+   "sub": "gpt-5.4 · OpenAI Agents SDK\nLLM tool: invoke_agent\nplans · delegates · synthesizes",
    "tone": "purple",
    "detail": {
     "role": "The reasoning core. It plans the request, decides which specialists to involve, fans out, and assembles the final cited response.",
     "does": [
      "Request-level reasoning happens natively in the model — routing, planning, fan-out, assembly",
-     "Only five hard tool calls, all of them external I/O",
-     "Publishes to each agent’s request channel and is the sole subscriber on every response channel",
+     "One LLM tool, invoke_agent: delegation is the only decision the model makes",
+     "Session load and save, output validation and the trace run as code around every run, so the model cannot skip them",
+     "Publishes to each agent’s topic and is the only reader of orchestrator-replies",
      "Owns retries and timeouts; agents never retry each other"
     ],
     "fork": "The alternative was a framework-driven graph where every hop is an explicit node. That makes the control flow legible but freezes it — every new question shape needs a new branch. Letting the model plan keeps the platform open-ended; the governance sits in the gates around it, not in a hardcoded graph.",
@@ -268,8 +271,50 @@ DIAGRAMS.jj = {
       "Managed Redis"
      ]
     ],
-    "say": "The orchestrator reasons; it doesn’t just route. The five tool calls are I/O, not thinking.",
+    "say": "The orchestrator reasons; it doesn’t just route. It has one tool, because delegation is the only thing it decides.",
     "hard": "The failure mode that mattered was not a wrong answer, it was a confident one. Refusal had to be a first-class, measured output, not an error path."
+   }
+  },
+  {
+   "id": "code",
+   "band": "L_orch",
+   "x": 1060,
+   "y": 200,
+   "w": 475,
+   "h": 172,
+   "name": "Orchestrator · code around every run",
+   "sub": "1  load session ← Redis\n2  model run · invoke_agent fan-out\n3  validate · Content Safety + citations\n   fail → revise (max 2), then blocked\n4  save session → Redis · validated only\n5  write trace → Cosmos + OTel",
+   "tone": "slate",
+   "align": "start",
+   "detail": {
+    "role": "The deterministic half of the orchestrator service: everything that runs on every request, in the same order, as plain code.",
+    "does": [
+     "Load session context from Managed Redis and inject prior turns into the model’s input",
+     "Run the model; it returns the answer plus plan, decision notes, answer summary and open threads as structured output",
+     "Validate with Azure AI Content Safety and citation integrity; failure reasons go back as a new turn, up to two revisions, then the response is blocked",
+     "Save only validated content to the Redis session",
+     "Write the orchestration trace, including the injected session context, to Cosmos by correlation ID and to OpenTelemetry"
+    ],
+    "fork": "These four steps used to be LLM tools. As tools, the model could skip one, or validate draft A and return draft B. As code they run on every request and cannot be skipped, because the model never calls them.",
+    "stack": [
+     [
+      "Runs in",
+      "orchestrator pod"
+     ],
+     [
+      "Session",
+      "Azure Managed Redis"
+     ],
+     [
+      "Safety",
+      "Content Safety + citation integrity"
+     ],
+     [
+      "Trace",
+      "Cosmos · OpenTelemetry"
+     ]
+    ],
+    "say": "A tool exists only where the model makes a real decision. Everything else is code."
    }
   },
   {
@@ -280,32 +325,37 @@ DIAGRAMS.jj = {
    "w": 1180,
    "h": 66,
    "name": "Azure Service Bus",
-   "sub": "pub / sub · one channel per agent · fan-in by correlation ID",
+   "sub": "topic per agent · stable + canary subscriptions · replies: orchestrator-replies, session = pod · correlation-ID fan-in",
    "tone": "pink",
    "detail": {
     "role": "The decoupling layer between the orchestrator and the specialists.",
     "does": [
-     "Every agent has its own dedicated request and response channel — not one shared fan-out topic",
-     "The orchestrator is the sole subscriber on all response channels",
-     "Message properties carry the correlation ID, the entitlement scope, and the release ring for canary routing"
+     "Every agent has its own topic with two subscriptions, stable and canary, filtered on a track property the orchestrator stamps",
+     "Replies come back on one session-enabled queue, orchestrator-replies; the session ID is the orchestrator pod, so each reply reaches the replica waiting for it",
+     "Only the orchestrator reads replies; fan-in is by correlation ID",
+     "Message properties carry the correlation ID, the entitlement scope and the release track"
     ],
-    "fork": "A shared topic with subscription filters is fewer moving parts. It was rejected because agents could then subscribe to results addressed to someone else — which in this domain means validating the wrong artifact, retrying work nobody owns, and a broken audit trail.",
+    "fork": "One shared topic for all agents was rejected: agents could subscribe to work addressed to someone else, which in this domain means validating the wrong artifact, retrying work nobody owns, and a broken audit trail. A topic per agent keeps that isolation and still allows an exact canary split.",
     "hard": "When parallelism was needed, the answer was for the orchestrator to publish a partial request as soon as the knowledge leg landed — not to let QA self-trigger off an event it wasn’t addressed on.",
     "stack": [
      [
       "Service",
-      "Azure Service Bus"
+      "Azure Service Bus (Standard or Premium)"
      ],
      [
-      "Topology",
-      "pub/sub, per-agent channels"
+      "Requests",
+      "topic per agent · stable + canary"
      ],
      [
-      "Ordering",
-      "session-scoped"
+      "Replies",
+      "orchestrator-replies, session = pod"
+     ],
+     [
+      "Scaling",
+      "KEDA per subscription"
      ]
     ],
-    "say": "Every agent gets its own channel in both directions, and only the orchestrator reads results."
+    "say": "Every agent gets its own topic, every request is stamped stable or canary, and only the orchestrator reads results."
    }
   },
   {
@@ -506,15 +556,17 @@ DIAGRAMS.jj = {
    "w": 570,
    "h": 100,
    "name": "Azure Managed Redis",
-   "sub": "sessions + retrieval cache · key = query + tier",
+   "sub": "session store + retrieval cache · key = query + tier",
    "tone": "rose",
    "detail": {
-    "role": "Short-lived state for a request in flight.",
+    "role": "Working memory outside any pod: the session store and the retrieval cache.",
     "does": [
-     "Holds the plan, partial agent results and conversation turn state",
-     "Lets an orchestrator pod die mid-request without losing the work"
+     "Session context is loaded before each run and saved after validation, with a TTL",
+     "Retrieval cache keyed by query plus tier, so a cached result never crosses an entitlement boundary",
+     "A missing key means a turn without history, not a failed request; runs on the high-availability tier"
     ],
-    "say": "Session state is external so any pod can pick the request back up."
+    "hard": "Redis is not the record. Keys expire and get evicted, so the session context injected into each run is also written to Cosmos with the trace. An answer can be reconstructed months later without Redis.",
+    "say": "Redis is working memory. Cosmos is the record."
    }
   },
   {
@@ -524,7 +576,7 @@ DIAGRAMS.jj = {
    "y": 330,
    "w": 522,
    "h": 92,
-   "name": "Knowledge index",
+   "name": "Knowledge index · kb-knowledge",
    "sub": "chunks stamped: entity_ids + ancestor_ids",
    "tone": "teal",
    "detail": {
@@ -558,13 +610,13 @@ DIAGRAMS.jj = {
    "y": 436,
    "w": 522,
    "h": 92,
-   "name": "Governed index",
+   "name": "Governed index · kb-compliance",
    "sub": "effective-dated · tiered · + ancestor stamps",
    "tone": "teal",
    "detail": {
     "role": "The governed index: SOPs, labels, submissions, safety records under change control.",
     "does": [
-     "Only the Drug Safety &amp; Compliance agent can query it",
+     "Only the Drug Safety &amp; Compliance agent can query it — its Search role is scoped to this index alone",
      "Every document version is pinned; superseded versions stay retrievable for audit",
      "Change control on the index is treated as change control on a validated system"
     ],
@@ -755,12 +807,13 @@ DIAGRAMS.jj = {
    "w": 690,
    "h": 128,
    "name": "Cosmos DB / SQL",
-   "sub": "state · audit logs · correlation IDs · tool traces",
+   "sub": "state · audit logs · tool traces · by correlation ID",
    "tone": "slate",
    "detail": {
     "role": "The evidence record. What was asked, what was retrieved, what was generated, what was shown.",
     "does": [
-     "Immutable append of every request, retrieval set, citation and gate decision",
+     "Immutable append of every request, retrieval set, citation and gate decision, by correlation ID",
+     "Includes the session context injected into each run, so nothing depends on Redis still holding it",
      "Written on the path, not reconstructed from logs afterwards",
      "This is what makes the platform defensible under 21 CFR Part 11 change control"
     ],
@@ -795,13 +848,14 @@ DIAGRAMS.jj = {
    "w": 690,
    "h": 128,
    "name": "Security · Governance",
-   "sub": "Key Vault · Entra Workload Identity · Purview",
+   "sub": "Key Vault · Workload Identity · Purview · per-index Search grants",
    "tone": "slate",
    "detail": {
     "role": "Every pod gets its own federated identity via OIDC token exchange — no shared secrets in the cluster.",
     "does": [
      "Six-step wiring: service account, federated credential, managed identity, RBAC on each resource",
-     "Scopes each agent to exactly the indexes it is allowed to read",
+     "Search Index Data Reader is assigned at index scope: Knowledge on kb-knowledge only, Drug Safety on kb-compliance only",
+     "Service Bus rights are scoped per topic, subscription and reply queue",
      "Session isolation falls out of this rather than being enforced in application code"
     ],
     "say": "The Compliance index isn’t protected by a code path. The Knowledge agent’s identity simply can’t read it."
@@ -970,7 +1024,11 @@ DIAGRAMS.jj = {
    "aoai",
    "direct sync REST — never via the bus",
    "async",
-   {"lbl": [1332, 660], 
+   {
+    "lbl": [
+     1332,
+     660
+    ],
     "pts": [
      [
       945,
@@ -1021,11 +1079,36 @@ DIAGRAMS.jj = {
   ],
   [
    "orch",
-   "redis",
-   "load / save_session_context",
+   "code",
+   "",
    "sync",
-   {"lbl": [1306, 226], 
-    "route": "straight"
+   {
+    "dir": "two",
+    "from": [
+     1030,
+     286
+    ],
+    "to": [
+     1060,
+     286
+    ]
+   }
+  ],
+  [
+   "code",
+   "redis",
+   "",
+   "sync",
+   {
+    "dir": "two",
+    "from": [
+     1535,
+     236
+    ],
+    "to": [
+     1590,
+     236
+    ]
    }
   ],
   [
@@ -1033,7 +1116,11 @@ DIAGRAMS.jj = {
    "kidx",
    "filter: tier + effective date + ancestor_ids",
    "hyb",
-   {"lbl": [1877, 548], 
+   {
+    "lbl": [
+     1877,
+     548
+    ],
     "pts": [
      [
       1568,
@@ -1051,7 +1138,11 @@ DIAGRAMS.jj = {
    "closure",
    "exact match or found:false — no nearest neighbor",
    "term",
-   {"lbl": [1400, 884], 
+   {
+    "lbl": [
+     1400,
+     884
+    ],
     "pts": [
      [
       1220,
@@ -1097,7 +1188,11 @@ DIAGRAMS.jj = {
    "L_ret",
    "writes vectors",
    "green-dash",
-   {"lbl": [1746, 888], 
+   {
+    "lbl": [
+     1746,
+     888
+    ],
     "pts": [
      [
       1625,
@@ -1115,7 +1210,11 @@ DIAGRAMS.jj = {
    "L_onto",
    "builds",
    "term-dash",
-   {"lbl": [2019, 868], 
+   {
+    "lbl": [
+     2019,
+     868
+    ],
     "pts": [
      [
       1975,
@@ -1133,7 +1232,11 @@ DIAGRAMS.jj = {
    "stamp",
    "closure feeds stamping · vocabulary release triggers re-stamp",
    "term-dash",
-   {"lbl": [1713, 1200], 
+   {
+    "lbl": [
+     1713,
+     1200
+    ],
     "pts": [
      [
       1975,
@@ -1151,7 +1254,11 @@ DIAGRAMS.jj = {
    "blob",
    "fetch + chunk",
    "blue-dash",
-   {"lbl": [350, 906], 
+   {
+    "lbl": [
+     350,
+     906
+    ],
     "pts": [
      [
       475,
@@ -1189,9 +1296,14 @@ DIAGRAMS.jj = {
   [
    "L_ing",
    "mon",
-   "emit_orchestration_trace → OTel",
+   "orchestration trace → OTel",
    "async",
-   {"lbl": [1112, 1290], "la": "start", 
+   {
+    "lbl": [
+     1112,
+     1290
+    ],
+    "la": "start",
     "from": [
      1100,
      1262
@@ -1211,10 +1323,11 @@ DIAGRAMS.jj = {
   },
   {
    "nodes": [
-    "orch",
-    "redis"
+    "code",
+    "redis",
+    "orch"
    ],
-   "text": "2 / 6 — The orchestrator plans: which specialists, in what order, with what is already cached. Session context is loaded from and saved to Managed Redis."
+   "text": "2 / 6 — Code loads the session from Managed Redis. The orchestrator plans: which specialists, with what task, and what runs in parallel. invoke_agent is its only tool."
   },
   {
    "nodes": [
@@ -1222,7 +1335,7 @@ DIAGRAMS.jj = {
     "onto",
     "know"
    ],
-   "text": "3 / 6 — Fan-out over the Service Bus, one channel per agent. Ontology resolves the terms against the dictionary; Knowledge runs hybrid retrieval filtered by tier, effective date and the ancestor closure."
+   "text": "3 / 6 — Fan-out over Service Bus: a topic per agent, each request stamped stable or canary. Ontology resolves the terms against the dictionary; Knowledge runs hybrid retrieval filtered by tier, effective date and the ancestor closure."
   },
   {
    "nodes": [
@@ -1231,7 +1344,7 @@ DIAGRAMS.jj = {
     "closure",
     "ds"
    ],
-   "text": "4 / 6 — Retrieval hits the two indexes. Anything regulated is answered only by Drug Safety against the governed index."
+   "text": "4 / 6 — Retrieval hits the two indexes. Anything regulated is answered only by Drug Safety, whose identity is the only one that can read the governed index."
   },
   {
    "nodes": [
@@ -1239,16 +1352,17 @@ DIAGRAMS.jj = {
     "aoai",
     "cosmos"
    ],
-   "text": "5 / 6 — QA verifies claim grounding and consistency, calling Azure OpenAI directly over REST — never through the bus. Cosmos records state, audit logs and tool traces by correlation ID."
+   "text": "5 / 6 — QA verifies claim grounding and consistency, calling Azure OpenAI directly over REST — never through the bus. Replies return on orchestrator-replies and are matched by correlation ID."
   },
   {
    "nodes": [
+    "code",
     "orch",
     "ingress",
     "apim",
     "users"
    ],
-   "text": "6 / 6 — The orchestrator validates output safety, assembles the cited answer and it returns the way it came, inside the p95 budget."
+   "text": "6 / 6 — Code validates the answer with Content Safety and citation checks, saves the session to Redis and writes the trace to Cosmos. The cited answer returns the way it came, inside the p95 budget."
   }
  ]
 };

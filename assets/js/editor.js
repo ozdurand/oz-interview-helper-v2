@@ -37,8 +37,9 @@ function injectToggles() {
     <button type="button" class="tool" data-e="addstrip">+ Strip layer</button>
     <button type="button" class="tool" data-e="connect">Connect →</button>
     <button type="button" class="tool" data-e="editsel" disabled>Edit…</button>
+    <button type="button" class="tool" data-e="sheet">Titles &amp; trace…</button>
     <button type="button" class="tool danger" data-e="delsel" disabled>Delete</button>
-    <span class="editstatus" id="editStatus">Tap to select · drag to move · corner to resize · double-tap to edit text</span>
+    <span class="editstatus" id="editStatus">Tap to select · drag to move · corner to resize · double-tap to edit text · tap the map title or legend to edit it</span>
     <span class="tool-group" style="margin-left:auto">
       <button type="button" class="tool" data-e="undo" title="Ctrl+Z">Undo</button>
       <button type="button" class="tool" data-e="redo" title="Ctrl+Shift+Z">Redo</button>
@@ -85,6 +86,19 @@ function sanitize(html) {
     .replace(/<(?!\/?(b|i|em|strong)\b)[^>]*>/g, '')
     .replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 }
+function setText(el, clean) {
+  const p = el.dataset.p;
+  if (el.dataset.line !== undefined) {
+    const lines = String(OZ.get(p) == null ? '' : OZ.get(p)).split('\n');
+    lines[Number(el.dataset.line)] = clean;
+    OZ.set(p, lines.join('\n'));
+  } else if (el.dataset.part !== undefined) {
+    const parts = String(OZ.get(p) == null ? '' : OZ.get(p)).split('—').map(x => x.trim());
+    const head = Number(el.dataset.part) === 0 ? clean : parts[0];
+    const tail = Number(el.dataset.part) === 1 ? clean : parts.slice(1).join(' — ');
+    OZ.set(p, tail ? `${head} — ${tail}` : head);
+  } else OZ.set(p, clean);
+}
 let focusSnapshotTaken = false, textTimer = null;
 document.addEventListener('focusin', e => {
   if (!OZ.editing || !e.target.classList || !e.target.classList.contains('ed')) return;
@@ -94,7 +108,7 @@ document.addEventListener('input', e => {
   if (!OZ.editing || !e.target.classList || !e.target.classList.contains('ed')) return;
   const el = e.target;
   clearTimeout(textTimer);
-  textTimer = setTimeout(() => { OZ.set(el.dataset.p, sanitize(el.innerHTML)); commit(); }, 250);
+  textTimer = setTimeout(() => { setText(el, sanitize(el.innerHTML)); commit(); }, 250);
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('ed')) { e.preventDefault(); e.target.blur(); }
@@ -104,13 +118,21 @@ document.addEventListener('focusout', e => {
   const el = e.target;
   clearTimeout(textTimer);
   const clean = sanitize(el.innerHTML);
-  OZ.set(el.dataset.p, clean); commit();
+  setText(el, clean); commit();
   if (el.innerHTML !== clean) el.innerHTML = clean;
   if (el.dataset.p.startsWith('diagrams.') && ui().current().screen === 'diagram') {
     if (/\.chips\./.test(el.dataset.p)) return;           /* chips: nothing else depends on them */
     ui().buildRail();
   }
 });
+
+/* editable text inside a link or button (matrix cells, quick links, the matrix button):
+   while editing, a click places the caret instead of navigating */
+document.addEventListener('click', e => {
+  if (!OZ.editing) return;
+  const ed = e.target.closest && e.target.closest('.ed');
+  if (ed && ed.closest('a, button')) { e.preventDefault(); e.stopPropagation(); }
+}, true);
 
 /* ---------------- row tools (arrays in narrative + chips) ---------------- */
 document.addEventListener('click', e => {
@@ -138,7 +160,7 @@ function setStatus(t) {
   const el = $('#editStatus'); if (!el) return;
   el.textContent = t || (mode === 'connect'
     ? (connectFrom ? 'Now tap the target box or layer' : 'Tap the source box or layer · Esc to cancel')
-    : 'Tap to select · drag to move · corner to resize · double-tap to edit text');
+    : 'Tap to select · drag to move · corner to resize · double-tap to edit text · tap the map title or legend to edit it');
 }
 function refreshSelButtons() {
   const has = !!D().sel;
@@ -185,6 +207,8 @@ function onDown(e) {
     }
     return true;
   }
+
+  if (t.closest && t.closest('.sh-title, .sh-sub, .sh-leg')) { openForm({ type: 'sheet' }); return true; }
 
   const p = ui().toDiagram(e.clientX, e.clientY);
   if (handle) {
@@ -271,6 +295,7 @@ const ACTIONS = {
     $('[data-e="connect"]').classList.add('on'); setStatus();
   },
   editsel() { if (D().sel) openForm(D().sel); },
+  sheet() { openForm({ type: 'sheet' }); },
   delsel() {
     const s = D().sel; if (!s) return;
     OZ.snapshot();
@@ -314,6 +339,9 @@ const F = (label, name, val, kind, opts) => {
   else ctl = `<input id="${id}" name="${name}" type="text" value="${esc(val)}">`;
   return `<div class="ff"><label for="${id}">${label}</label>${ctl}</div>`;
 };
+/* map text is stored as HTML-safe text; show it plain in the form, store it escaped */
+const plain = s => String(s == null ? '' : s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+const safe = s => String(s == null ? '' : s).trim().replace(/&(?![a-z#0-9]+;)/gi, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 let formTarget = null, formTimer = null;
 
 function openForm(sel, opts) {
@@ -370,6 +398,22 @@ function openForm(sel, opts) {
        ${F('The boundary — why', 'bdec', bd.dec || '', 'textarea', { rows: 2 })}
        ${F('Stack — Key | Value per line', 'bstack', (bd.stack || []).map(s => s.join(' | ')).join('\n'), 'textarea', { rows: 2 })}
        ${F('Say it like this', 'bsay', bd.say || '', 'textarea', { rows: 2 })}`;
+  } else if (sel.type === 'sheet') {
+    const sh = g.sheet, dg = D().dgm, tr = g.trace || [];
+    eyebrow = 'Editing map text'; title = Engine.stripTags(plain((sh && sh.title) || dg.sec || 'Map'));
+    body = (sh ? `<h5 class="fh">Sheet</h5>
+        ${F('Title', 'sh_title', plain(sh.title))}
+        ${F('Subtitle', 'sh_sub', plain(sh.sub))}
+        ${F('Top-right note', 'sh_note', plain(sh.note))}
+        ${F('Footnote', 'sh_foot', plain(sh.foot), 'textarea', { rows: 2 })}
+        ${(sh.legend || []).map((l, i) => F(`Legend ${i + 1}`, 'sh_leg_' + i, plain(l[0]))).join('')}
+        ${(sh.texts || []).map((x, i) => F(`Free label ${i + 1}`, 'sh_txt_' + i, plain(x[2]))).join('')}`
+      : `<p class="fhint">This map has no title block. Its header (company, section, subtitle) and chips are edited in place above the map.</p>`) +
+      (tr.length ? `<h5 class="fh">Trace narration</h5>` + tr.map((x, i) => F(`Step ${i + 1}`, 'tr_' + i, plain(x.text), 'textarea', { rows: 3 })).join('') : '') +
+      (dg.variantGroup ? `<h5 class="fh">Toggle labels</h5>${F('Toggle name', 'vg_label', plain(dg.variantGroup.label))}` +
+        dg.variantGroup.options.map((o, i) => F(`Option ${i + 1}`, 'vg_o_' + i, plain(o.label))).join('') : '') +
+      (dg.depthGroup ? `${dg.variantGroup ? '' : '<h5 class="fh">Toggle labels</h5>'}${F('Depth toggle name', 'dg_label', plain(dg.depthGroup.label))}` +
+        dg.depthGroup.options.map((o, i) => F(`Depth ${i + 1}`, 'dg_o_' + i, plain(o.label))).join('') : '');
   } else if (sel.type === 'edge') {
     const e = g.edges[sel.i]; const o = e[4] || {};
     const nm = id => { const x = nodeOf(id) || bandOf(id); return x ? Engine.stripTags(x.name).split('—')[0].trim() : id; };
@@ -438,6 +482,18 @@ function applyForm() {
     Object.keys(bd).forEach(k => { if (!bd[k] || (Array.isArray(bd[k]) && !bd[k].length)) delete bd[k]; });
     if (Object.keys(bd).length) b.detail = bd; else delete b.detail;
     growCanvas(); ui().buildRail();
+  } else if (sel.type === 'sheet') {
+    const sh = g.sheet, dg = D().dgm;
+    const put = (obj, key, field) => { const val = safe(v(field)); if (val) obj[key] = val; else delete obj[key]; };
+    if (sh) {
+      put(sh, 'title', 'sh_title'); put(sh, 'sub', 'sh_sub'); put(sh, 'note', 'sh_note'); put(sh, 'foot', 'sh_foot');
+      (sh.legend || []).forEach((l, i) => { l[0] = safe(v('sh_leg_' + i)); });
+      (sh.texts || []).forEach((x, i) => { x[2] = safe(v('sh_txt_' + i)); });
+    }
+    (g.trace || []).forEach((x, i) => { x.text = safe(v('tr_' + i)); });
+    if (dg.variantGroup) { dg.variantGroup.label = safe(v('vg_label')); dg.variantGroup.options.forEach((o, i) => { o.label = safe(v('vg_o_' + i)); }); }
+    if (dg.depthGroup) { dg.depthGroup.label = safe(v('dg_label')); dg.depthGroup.options.forEach((o, i) => { o.label = safe(v('dg_o_' + i)); }); }
+    ui().buildTools();
   } else if (sel.type === 'edge') {
     const e = g.edges[sel.i]; if (!e) return;
     e[2] = v('label').trim(); e[3] = v('cls'); e[4] = { ...(e[4] || {}), dir: v('dir'), route: v('route') };

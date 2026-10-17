@@ -249,8 +249,9 @@ const Engine = (() => {
       } else {
         out += `<rect class="n-box" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${fs > 1.2 ? 6 : 10}" ${ns}/>`;
       }
-      titleLines.forEach(l => { out += `<text class="n-title" x="${cx}" y="${ty}" text-anchor="middle">${l}</text>`; ty += TL; });
-      if (subLines.length) { ty += 3; subLines.forEach(l => { out += `<text class="n-sub" x="${cx}" y="${ty}" text-anchor="middle">${l}</text>`; ty += SL; }); }
+      const tx = n.align === 'start' ? n.x + 18 : cx, ta = n.align === 'start' ? 'start' : 'middle';
+      titleLines.forEach(l => { out += `<text class="n-title" x="${tx}" y="${ty}" text-anchor="${ta}">${l}</text>`; ty += TL; });
+      if (subLines.length) { ty += 3; subLines.forEach(l => { out += `<text class="n-sub" x="${tx}" y="${ty}" text-anchor="${ta}" xml:space="preserve">${l}</text>`; ty += SL; }); }
       if (editing && s) out += `<rect class="handle" data-handle="node" data-hid="${n.id}" x="${n.x + n.w - 8}" y="${n.y + n.h - 8}" width="16" height="16" rx="3"/>`;
       out += `</g>`;
     });

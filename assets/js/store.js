@@ -2,12 +2,24 @@
    store.js — working copy of the content + persistence + undo
    =========================================================== */
 window.OZ = (() => {
-  const KEY = 'oz.data.v4';
-  const OLD_KEYS = ['oz.data.v3', 'oz.data.v2', 'oz.data.v1'];
+  /* This site shares browser storage with the first dossier (both live on
+     ozdurand.github.io), so v2 keeps its own key and never deletes the
+     first site's saves. */
+  const KEY = 'oz.v2.data.v5';
+  const MIGRATED = 'oz.v2.migrated';
+  const OLD_KEYS = ['oz.data.v4', 'oz.data.v3', 'oz.data.v2', 'oz.data.v1'];
   /* diagrams whose shipped layout changed between builds — these are taken
      fresh from the shipped files when migrating an older save */
   const RELAYOUT = ['jj', 'hd', 'citi', 'rag', 'cicd'];
+  /* shipped narrative text that changed in this build; replaced in an older
+     save only where it was never edited */
+  const TEXT_UPDATES = [
+    ['Azure Service Bus with a dedicated request/response channel per agent', 'Azure Service Bus: a topic per agent with stable and canary subscriptions; only the orchestrator reads results'],
+    ['Service Bus · per-agent channels', 'Service Bus · topic per agent'],
+    ['Per-agent request/response channels on Service Bus with the orchestrator as sole subscriber on results.', 'A topic per agent on Service Bus, with the orchestrator as the only reader of results.']
+  ];
   const clone = o => JSON.parse(JSON.stringify(o));
+  const isObj = o => o && typeof o === 'object' && !Array.isArray(o);
   const mem = {};
   const ls = {
     get(k) { try { const v = localStorage.getItem(k); return v === null ? (mem[k] ?? null) : v; } catch (e) { return mem[k] ?? null; } },
@@ -49,27 +61,48 @@ window.OZ = (() => {
     });
     return diagrams;
   }
-  const shipped = { companies: clone(COMPANIES), diagrams: applyCards(clone(DIAGRAMS)) };
+  const shipped = { companies: clone(COMPANIES), diagrams: applyCards(clone(DIAGRAMS)), ui: clone(UI_TEXT) };
+
+  /* add anything a save is missing (new labels, the Problem statement) without touching what it has */
+  function fillMissing(t, s) {
+    Object.keys(s).forEach(k => {
+      if (!(k in t)) t[k] = clone(s[k]);
+      else if (isObj(t[k]) && isObj(s[k])) fillMissing(t[k], s[k]);
+    });
+  }
+  function complete(d) {
+    if (!isObj(d.ui)) d.ui = {};
+    fillMissing(d.ui, shipped.ui);
+    fillMissing(d.companies, shipped.companies);
+    Object.keys(shipped.diagrams).forEach(id => { if (!d.diagrams[id]) d.diagrams[id] = clone(shipped.diagrams[id]); });
+    return d;
+  }
+  const valid = d => d && d.companies && d.diagrams;
 
   function load() {
     const raw = ls.get(KEY);
     if (raw) {
-      try { const d = JSON.parse(raw); if (d && d.companies && d.diagrams) return d; } catch (e) {}
+      try { const d = JSON.parse(raw); if (valid(d)) return complete(d); } catch (e) {}
       return clone(shipped);
     }
-    /* migrate an older save: keep every edit except the relaid-out maps */
-    for (const k of OLD_KEYS) {
-      const old = ls.get(k);
-      if (!old) continue;
-      try {
-        const d = JSON.parse(old);
-        if (d && d.companies && d.diagrams) {
-          RELAYOUT.forEach(id => { d.diagrams[id] = clone(shipped.diagrams[id]); });
-          ls.set(KEY, JSON.stringify(d)); ls.del(k);
-          return d;
-        }
-      } catch (e) {}
-      ls.del(k);
+    /* first visit to this build: carry over edits from the older shared save once */
+    if (ls.get(MIGRATED) === null) {
+      ls.set(MIGRATED, '1');
+      for (const k of OLD_KEYS) {
+        const old = ls.get(k);
+        if (!old) continue;
+        try {
+          let txt = old;
+          TEXT_UPDATES.forEach(([a, b]) => { txt = txt.split(JSON.stringify(a).slice(1, -1)).join(JSON.stringify(b).slice(1, -1)); });
+          const d = JSON.parse(txt);
+          if (valid(d)) {
+            RELAYOUT.forEach(id => { d.diagrams[id] = clone(shipped.diagrams[id]); });
+            complete(d);
+            ls.set(KEY, JSON.stringify(d));
+            return d;
+          }
+        } catch (e) {}
+      }
     }
     return clone(shipped);
   }
@@ -82,7 +115,7 @@ window.OZ = (() => {
     dirty: false,
 
     save() { ls.set(KEY, JSON.stringify(OZ.data)); OZ.dirty = false; },
-    reset() { OZ.data = clone(shipped); ls.del(KEY); OLD_KEYS.forEach(k => ls.del(k)); OZ.undoStack = []; OZ.redoStack = []; },
+    reset() { OZ.data = clone(shipped); ls.del(KEY); ls.set(MIGRATED, '1'); OZ.undoStack = []; OZ.redoStack = []; },
     hasEdits() { return ls.get(KEY) !== null; },
 
     /* snapshot-based undo: call before a change is committed */
@@ -117,6 +150,14 @@ window.OZ = (() => {
       if (!OZ.editing) return text == null ? '' : text;
       return `<span class="ed${cls ? ' ' + cls : ''}" contenteditable="true" spellcheck="false" data-p="${path}">${text == null ? '' : text}</span>`;
     },
+    /* one line of a multi-line value (data-line) or one side of "name — tagline" (data-part) */
+    edAt(text, path, attr, idx) {
+      if (!OZ.editing) return text == null ? '' : text;
+      return `<span class="ed" contenteditable="true" spellcheck="false" data-p="${path}" data-${attr}="${idx}">${text == null ? '' : text}</span>`;
+    },
+    /* interface label from OZ.data.ui by dotted key, editable in edit mode */
+    t(key) { return OZ.ed(OZ.get('ui.' + key), 'ui.' + key); },
+    tv(key) { const v = OZ.get('ui.' + key); return v == null ? '' : v; },
     /* row tools for arrays: delete this row, add a row after it */
     rowTools(arrPath, i, tpl) {
       if (!OZ.editing) return '';

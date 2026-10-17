@@ -15,7 +15,7 @@ const CARDS = {
    ],
    [
     "Scaling",
-    "KEDA on queue depth"
+    "KEDA per subscription · HPA on orchestrator"
    ],
    [
     "Identity",
@@ -112,9 +112,9 @@ const CARDS = {
   ]
  },
  "jj/afd": {
-    "head": "The protected global entry point: TLS, WAF, routing and load balancing before the regional application stack.",
-    "dh": "A managed edge beat exposing an in-cluster ingress directly to the internet.",
-    "dec": "Front Door terminates TLS, applies WAF rules, and routes validated traffic to the regional API layer. That keeps AKS and the agents private while giving the platform a resilient, globally managed entry point.",
+  "head": "The protected global entry point: TLS, WAF, routing and load balancing before the regional application stack.",
+  "dh": "A managed edge beat exposing an in-cluster ingress directly to the internet.",
+  "dec": "Front Door terminates TLS, applies WAF rules, and routes validated traffic to the regional API layer. That keeps AKS and the agents private while giving the platform a resilient, globally managed entry point.",
   "stack": [
    [
     "Service",
@@ -148,7 +148,7 @@ const CARDS = {
  "jj/ingress": {
   "head": "The Kubernetes ingress into the cluster — internal-only, routing to the orchestrator.",
   "dh": "A single orchestrator entry point beat exposing agents individually.",
-  "dec": "Only the orchestrator is addressable. Agents are reachable solely through their Service Bus channels, which is what makes the audit trail complete.",
+  "dec": "Only the orchestrator is addressable. Agents are reachable solely through their Service Bus topics, which is what makes the audit trail complete.",
   "stack": [
    [
     "Component",
@@ -166,7 +166,7 @@ const CARDS = {
  },
  "jj/glance": {
   "head": "The numbers to have ready before anyone asks.",
-  "dh": "Six services, fifteen tools, two indexes, one closure table.",
+  "dh": "Six services, eleven tools, two indexes, one closure table.",
   "dec": "These are the figures that anchor the whole conversation. Every one of them is a design decision, not just a count.",
   "stack": [
    [
@@ -175,7 +175,7 @@ const CARDS = {
    ],
    [
     "Tools",
-    "15 total"
+    "11 total"
    ],
    [
     "Indexes",
@@ -197,11 +197,30 @@ const CARDS = {
  },
  "jj/orch": {
   "head": "The reasoning core: it plans the request, chooses specialists, fans out, and assembles the cited answer.",
-  "dh": "Model-native planning beat a hardcoded execution graph."
+  "dh": "Model-native planning with one tool beat a hardcoded execution graph.",
+  "dec": "The model plans, delegates and synthesizes; invoke_agent is its only tool because delegation is the only decision it makes. Session, safety and trace run as code in the same pod, so they happen on every request and cannot be skipped.",
+  "stack": [
+   [
+    "Model",
+    "GPT-5.4"
+   ],
+   [
+    "Framework",
+    "OpenAI Agents SDK"
+   ],
+   [
+    "LLM tools",
+    "invoke_agent"
+   ],
+   [
+    "State",
+    "Managed Redis"
+   ]
+  ]
  },
  "jj/sb": {
-  "head": "The decoupling layer between orchestrator and specialists — one channel per agent, in both directions.",
-  "dh": "Per-agent channels beat one shared fan-out topic."
+  "head": "The decoupling layer between orchestrator and specialists — a topic per agent with stable and canary subscriptions, and one reply queue only the orchestrator reads.",
+  "dh": "Per-agent topics beat one shared fan-out topic and a replica-ratio canary."
  },
  "jj/summ": {
   "head": "Compresses long validated material into the shape the scientist asked for.",
@@ -251,9 +270,9 @@ const CARDS = {
   ]
  },
  "jj/redis": {
-  "head": "Session and retrieval cache — state external to any pod, keyed by query and tier.",
-  "dh": "External state beat in-memory session state.",
-  "dec": "With the plan and partial results in Redis, an orchestrator pod can die mid-request and another finishes it. The retrieval cache is keyed by query plus tier so a cached result never crosses an entitlement boundary.",
+  "head": "The session store and retrieval cache — working memory outside any pod.",
+  "dh": "Redis for working memory and Cosmos for the record beat one store doing both.",
+  "dec": "Session context is read before each run and written after validation, with a TTL. Because keys expire, the context injected into each run is also written to Cosmos with the trace. A missing key degrades to a turn without history rather than an error.",
   "stack": [
    [
     "Service",
@@ -265,7 +284,11 @@ const CARDS = {
    ],
    [
     "Key",
-    "query + tier"
+    "session · query + tier"
+   ],
+   [
+    "Record",
+    "Cosmos, not Redis"
    ]
   ]
  },
@@ -288,7 +311,7 @@ const CARDS = {
    ],
    [
     "Access",
-    "Drug Safety agent only"
+    "Drug Safety identity only, index-scoped role"
    ],
    [
     "Versioning",
@@ -422,7 +445,7 @@ const CARDS = {
  "jj/cosmos": {
   "head": "The evidence record: what was asked, what was retrieved, what was generated, what was shown — by correlation ID.",
   "dh": "Writing the audit trail on the request path beat reconstructing it from logs.",
-  "dec": "If we cannot reconstruct why a scientist saw a specific sentence, the platform is not compliant. Cosmos is written as part of the request, not assembled afterwards.",
+  "dec": "If we cannot reconstruct why a scientist saw a specific sentence, the platform is not compliant. Cosmos is written as part of the request, including the session context that shaped the answer, so the record never depends on Redis.",
   "stack": [
    [
     "Service",
@@ -464,7 +487,7 @@ const CARDS = {
  "jj/secgov": {
   "head": "Secrets, per-pod federated identity, and data governance — the controls the auditor asks about.",
   "dh": "Identity per pod beat shared secrets in the cluster.",
-  "dec": "Workload Identity gives each agent its own federated identity via OIDC token exchange. The Knowledge agent cannot read the governed index because its identity cannot — not because a code path checks.",
+  "dec": "Workload Identity gives each agent its own federated identity via OIDC token exchange. Search roles are assigned at index scope, so the Knowledge agent cannot read the governed index because its identity cannot — not because a code path checks.",
   "stack": [
    [
     "Secrets",
@@ -473,6 +496,10 @@ const CARDS = {
    [
     "Identity",
     "Entra Workload Identity"
+   ],
+   [
+    "Search",
+    "role per index"
    ],
    [
     "Governance",
@@ -2672,7 +2699,7 @@ const CARDS = {
    ],
    [
     "Routing",
-    "message property"
+    "track property → canary subscription"
    ],
    [
     "Rollback",
@@ -2682,7 +2709,7 @@ const CARDS = {
   "how": [
    "Deploy to staging with the same digest",
    "Canary rollout — 5/20/50/100 for Knowledge, 2/10/50/100 with an SME pause for Drug Safety",
-   "Route canary traffic by message property, not replica ratio",
+   "Route canary traffic on each agent’s topic: the orchestrator stamps a track property and the canary subscription feeds the canary pods",
    "Watch SLOs and quality signals",
    "Demote the ring automatically on breach"
   ],
@@ -2938,16 +2965,35 @@ const CARDS = {
  },
  "cicd/c_route": {
   "head": "The hard part: canary on a message bus is not the same as canary behind an ingress.",
-  "dh": "Message-property routing beat a replica-ratio approximation."
+  "dh": "A topic per agent with stable and canary subscriptions beat a replica-ratio approximation.",
+  "dec": "The orchestrator stamps a track property at the rollout step’s weight, hashing the session ID so a conversation stays on one version. Subscription filters send canary-tracked messages to the canary pods. The Drug Safety 2% first ring is only exact this way; with replicas it would need about fifty pods per canary pod, and KEDA would drift the ratio with load.",
+  "stack": [
+   [
+    "Channel",
+    "topic per agent"
+   ],
+   [
+    "Subscriptions",
+    "stable · canary"
+   ],
+   [
+    "Filter",
+    "track property"
+   ],
+   [
+    "Scaling",
+    "KEDA per subscription"
+   ]
+  ]
  },
  "cicd/c_slo": {
   "head": "The canary analysis window, using product signals rather than just infrastructure ones.",
   "dh": "Quality signals beat CPU as the canary metric.",
-  "dec": "For an agent, quality metrics degrade before CPU ever notices. Refusal rate and citation coverage are in the analysis alongside latency and queue depth.",
+  "dec": "For an agent, quality metrics degrade before CPU ever notices. Refusal rate and citation coverage are in the analysis alongside latency and subscription backlog.",
   "stack": [
    [
     "Infra",
-    "latency · errors · queue depth"
+    "latency · errors · subscription backlog"
    ],
    [
     "Quality",
@@ -2972,5 +3018,9 @@ const CARDS = {
     "instant — previous digest still live"
    ]
   ]
+ },
+ "jj/code": {
+  "head": "The deterministic half of the orchestrator: load session, validate, save session and write the trace, on every request.",
+  "dh": "Code around the run beat lifecycle steps as LLM tools."
  }
 };

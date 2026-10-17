@@ -38,42 +38,59 @@ function sizePitch() {
   const avail = home.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - chrome - 6;
   el.style.maxHeight = Math.max(140, avail) + 'px';
 }
+/* v2 keeps its own pitch; the first time, it starts from the pitch saved by the original site */
+const PITCH_KEY = 'oz.v2.pitch';
 function initPitch() {
-  const saved = pstore.get('oz.pitch');
+  const saved = pstore.get(PITCH_KEY) ?? pstore.get('oz.pitch');
   pitchEl.innerHTML = saved !== null ? saved : PITCH_DEFAULT;
   updateCount();
   let t;
   pitchEl.addEventListener('input', () => {
     updateCount(); clearTimeout(t);
-    t = setTimeout(() => { pstore.set('oz.pitch', pitchEl.innerHTML); flagEl.classList.add('flash'); setTimeout(() => flagEl.classList.remove('flash'), 900); }, 500);
+    t = setTimeout(() => { pstore.set(PITCH_KEY, pitchEl.innerHTML); flagEl.classList.add('flash'); setTimeout(() => flagEl.classList.remove('flash'), 900); }, 500);
   });
-  $('#resetPitch').addEventListener('click', () => { pitchEl.innerHTML = PITCH_DEFAULT; pstore.set('oz.pitch', PITCH_DEFAULT); updateCount(); sizePitch(); });
+  $('#resetPitch').addEventListener('click', () => { pitchEl.innerHTML = PITCH_DEFAULT; pstore.set(PITCH_KEY, PITCH_DEFAULT); updateCount(); sizePitch(); });
   requestAnimationFrame(sizePitch);
+}
+
+/* ---------------- home labels ---------------- */
+const QUICK = [['jj', '#/jj/architecture'], ['hd', '#/hd/architecture'], ['citi', '#/citi/architecture']];
+function buildHome() {
+  $('#pitchLabel').innerHTML = OZ.t('home.pitchTitle');
+  $('#statusTxt').innerHTML = OZ.t('home.status');
+  $('#pitchHint').innerHTML = OZ.t('home.hint');
+  $('#openMatrix').innerHTML = OZ.t('home.cta');
+  $('#quicknav').innerHTML = QUICK.map(([id, href]) => {
+    const c = CO()[id];
+    return `<a class="qn" href="${href}"><b>${OZ.ed(c.kicker, `companies.${id}.kicker`)}</b><span>${OZ.ed(c.name, `companies.${id}.name`)}</span></a>`;
+  }).join('') + `<a class="qn wide" href="#/sys/rag"><b>${OZ.t('home.cross.0')}</b><span>${OZ.t('home.cross.1')}</span></a>`;
 }
 
 /* ---------------- matrix ---------------- */
 const SECTIONS = [
-  { id: 'architecture', g: '\u25A4', t: 'Architecture', d: 'Interactive map', map: true },
-  { id: 'problem', g: '\u25C8', t: 'Problem statement', d: 'Why the platform exists' },
-  { id: 'poc', g: '\u25D4', t: 'POC', d: 'Prove it works' },
-  { id: 'mvp', g: '\u25D1', t: 'MVP', d: 'Make it real' },
-  { id: 'prod', g: '\u25CF', t: 'Production', d: 'Run it at scale' },
-  { id: 'pain', g: '\u26A0', t: 'Pain points', d: 'By layer' }
+  { id: 'architecture', g: '▤', map: true },
+  { id: 'problem', g: '◈' },
+  { id: 'poc', g: '◔' },
+  { id: 'mvp', g: '◑' },
+  { id: 'prod', g: '●' },
+  { id: 'pain', g: '⚠' }
 ];
 function buildMatrix() {
+  $('#mTitle').innerHTML = OZ.t('matrix.title');
+  $('#mSub').innerHTML = OZ.t('matrix.sub');
   let html = '';
   ['jj', 'hd', 'citi'].forEach(id => {
     const c = CO()[id];
     html += `<section class="mrow"><div class="mrow-head"><h3>${OZ.ed(c.name, `companies.${id}.name`)}</h3><p>${OZ.ed(c.kicker, `companies.${id}.kicker`)} · ${OZ.ed(c.tag, `companies.${id}.tag`)}</p></div><div class="mrow-cells">`;
-    const sections = id === 'jj' ? SECTIONS : SECTIONS.filter(s => s.id !== 'problem');
+    const sections = SECTIONS.filter(s => s.id !== 'problem' || c.problem);
     sections.forEach(s => {
-      html += `<a class="mcell${s.map ? ' map' : ''}" href="#/${id}/${s.id}"><span class="g">${s.g}</span><span class="t">${s.t}</span><span class="d">${s.d}</span></a>`;
+      html += `<a class="mcell${s.map ? ' map' : ''}" href="#/${id}/${s.id}"><span class="g">${s.g}</span><span class="t">${OZ.t(`matrix.sections.${s.id}.0`)}</span><span class="d">${OZ.t(`matrix.sections.${s.id}.1`)}</span></a>`;
     });
     html += `</div></section>`;
   });
-  html += `<section class="mrow sys"><div class="mrow-head"><h3>Cross-cutting pipelines</h3><p>The two systems that show up in every one of these roles</p></div><div class="mrow-cells">
-    <a class="mcell map" href="#/sys/rag"><span class="g">\u25A4</span><span class="t">RAG pipeline</span><span class="d">Index time, query time, quality</span></a>
-    <a class="mcell map" href="#/sys/cicd"><span class="g">\u25A4</span><span class="t">CI/CD pipeline</span><span class="d">Agent microservice on AKS</span></a>
+  html += `<section class="mrow sys"><div class="mrow-head"><h3>${OZ.t('matrix.sysTitle')}</h3><p>${OZ.t('matrix.sysSub')}</p></div><div class="mrow-cells">
+    <a class="mcell map" href="#/sys/rag"><span class="g">▤</span><span class="t">${OZ.t('matrix.rag.0')}</span><span class="d">${OZ.t('matrix.rag.1')}</span></a>
+    <a class="mcell map" href="#/sys/cicd"><span class="g">▤</span><span class="t">${OZ.t('matrix.cicd.0')}</span><span class="d">${OZ.t('matrix.cicd.1')}</span></a>
     </div></section>`;
   $('#mgrid').innerHTML = html;
 }
@@ -91,13 +108,13 @@ function renderPhase(coId, secId) {
   h += '</div>';
 
   if (p.stats) {
-    h += `<div class="blk"><h4>The state</h4><h3>${OZ.ed(p.goal, `${P}.goal`)}</h3><p>${OZ.ed(p.goalBody, `${P}.goalBody`)}</p><div class="stats">`;
+    h += `<div class="blk"><h4>${OZ.t('phase.state')}</h4><h3>${OZ.ed(p.goal, `${P}.goal`)}</h3><p>${OZ.ed(p.goalBody, `${P}.goalBody`)}</p><div class="stats">`;
     p.stats.forEach((s, i) => {
       h += `<div class="stat"><b>${OZ.ed(s[0], `${P}.stats.${i}.0`)}</b><span>${OZ.ed(s[1], `${P}.stats.${i}.1`)}</span><em>${OZ.ed(s[2], `${P}.stats.${i}.2`)}</em>${OZ.rowTools(`${P}.stats`, i, ['0%', 'metric', 'what it measures'])}</div>`;
     });
     h += '</div>' + OZ.addTool(`${P}.stats`, ['0%', 'metric', 'what it measures'], 'Add a metric') + '</div>';
   } else {
-    h += `<div class="blk"><h4>The goal</h4><h3>${OZ.ed(p.goal, `${P}.goal`)}</h3><p>${OZ.ed(p.goalBody, `${P}.goalBody`)}</p></div>`;
+    h += `<div class="blk"><h4>${OZ.t('phase.goal')}</h4><h3>${OZ.ed(p.goal, `${P}.goal`)}</h3><p>${OZ.ed(p.goalBody, `${P}.goalBody`)}</p></div>`;
   }
 
   h += `<div class="blk"><h4>${OZ.ed(p.listTitle, `${P}.listTitle`)}</h4><ul>` +
@@ -105,10 +122,10 @@ function renderPhase(coId, secId) {
     '</ul>' + OZ.addTool(`${P}.list`, 'New item', 'Add an item') + '</div>';
 
   if (p.gate) {
-    h += `<div class="blk"><h4>Validation &amp; gate</h4><div class="gate"><strong>${OZ.ed(p.gate.head, `${P}.gate.head`)}</strong><p>${OZ.ed(p.gate.body, `${P}.gate.body`)}</p></div></div>`;
+    h += `<div class="blk"><h4>${OZ.t('phase.gate')}</h4><div class="gate"><strong>${OZ.ed(p.gate.head, `${P}.gate.head`)}</strong><p>${OZ.ed(p.gate.body, `${P}.gate.body`)}</p></div></div>`;
   }
 
-  h += '<div class="blk"><h4>Stack</h4><div class="stackgrid">' +
+  h += `<div class="blk"><h4>${OZ.t('phase.stack')}</h4><div class="stackgrid">` +
     p.stack.map((s, i) => `<div class="stackitem"><b>${OZ.ed(s[0], `${P}.stack.${i}.0`)}</b><span>${OZ.ed(s[1], `${P}.stack.${i}.1`)}</span>${OZ.rowTools(`${P}.stack`, i, ['Key', 'Value'])}</div>`).join('') +
     '</div>' + OZ.addTool(`${P}.stack`, ['Key', 'Value'], 'Add a stack item') + '</div>';
   h += '</div>';
@@ -120,14 +137,14 @@ function renderPain(coId) {
   const c = CO()[coId];
   const P = `companies.${coId}.pains`;
   $('#vCo').innerHTML = OZ.ed(c.name, `companies.${coId}.name`);
-  $('#vSec').textContent = 'Pain points';
-  $('#vSub').textContent = 'By layer';
+  $('#vSec').innerHTML = OZ.t('pain.title');
+  $('#vSub').innerHTML = OZ.t('pain.sub');
   let h = '<div class="vinner"><div class="painlist">';
   c.pains.forEach((p, i) => {
     h += `<article class="pain"><div class="pain-h"><div class="lay">${String(i + 1).padStart(2, '0')} · ${OZ.ed(p[0], `${P}.${i}.0`)}${OZ.rowTools(P, i, ['Layer', 'Title', 'What hurt.', 'What fixed it.'])}</div><h3>${OZ.ed(p[1], `${P}.${i}.1`)}</h3></div>
       <div class="pain-b">
-        <div class="pb p"><i>Pain</i><p>${OZ.ed(p[2], `${P}.${i}.2`)}</p></div>
-        <div class="pb f"><i>Fix</i><p>${OZ.ed(p[3], `${P}.${i}.3`)}</p></div>
+        <div class="pb p"><i>${OZ.t('pain.pain')}</i><p>${OZ.ed(p[2], `${P}.${i}.2`)}</p></div>
+        <div class="pb f"><i>${OZ.t('pain.fix')}</i><p>${OZ.ed(p[3], `${P}.${i}.3`)}</p></div>
       </div></article>`;
   });
   h += '</div>' + OZ.addTool(P, ['Layer', 'Title', 'What hurt.', 'What fixed it.'], 'Add a pain point') + '</div>';
@@ -135,11 +152,14 @@ function renderPain(coId) {
   $('#vBody').scrollTop = 0;
 }
 
-function renderProblem() {
-  $('#vCo').textContent = 'Johnson & Johnson';
-  $('#vSec').textContent = PROBLEM_STATEMENT.label;
-  $('#vSub').textContent = PROBLEM_STATEMENT.sub;
-  $('#vBody').innerHTML = `<div class="vinner problem-view"><div class="blk problem-hero"><h4>General use case</h4><h3>${PROBLEM_STATEMENT.title}</h3><div class="problem-copy">${PROBLEM_STATEMENT.paragraphs.map(p => `<p>${p}</p>`).join('')}</div></div></div>`;
+function renderProblem(coId) {
+  const c = CO()[coId], pr = c.problem, P = `companies.${coId}.problem`;
+  $('#vCo').innerHTML = OZ.ed(c.name, `companies.${coId}.name`);
+  $('#vSec').innerHTML = OZ.ed(pr.label, `${P}.label`);
+  $('#vSub').innerHTML = OZ.ed(pr.sub, `${P}.sub`);
+  $('#vBody').innerHTML = `<div class="vinner problem-view"><div class="blk problem-hero"><h4>${OZ.ed(pr.eyebrow, `${P}.eyebrow`)}</h4><h3>${OZ.ed(pr.title, `${P}.title`)}</h3><div class="problem-copy">` +
+    pr.paragraphs.map((x, i) => `<p>${OZ.ed(x, `${P}.paragraphs.${i}`)}${OZ.rowTools(`${P}.paragraphs`, i, 'New paragraph')}</p>`).join('') +
+    `</div>${OZ.addTool(`${P}.paragraphs`, 'New paragraph', 'Add a paragraph')}</div></div>`;
   $('#vBody').scrollTop = 0;
 }
 
@@ -277,8 +297,7 @@ function cardHash(id, nodeId) {
 }
 
 /* ---------- card page ---------- */
-const PANELS_NODE = ['The role', 'How it works', 'The decision', 'Stack'];
-const PANELS_BAND = ['What it\u2019s for', 'What\u2019s inside', 'The boundary', 'Stack'];
+/* panel headings live in OZ.data.ui.card so they can be edited like any other text */
 
 function openCard(id, rest) {
   const g = DG()[id];
@@ -308,17 +327,42 @@ function detailPath(id, item, variant) {
   return `${base}.${item.isBand ? 'bands' : 'nodes'}.${i}.detail`;
 }
 
+/* where a card's own name and sub-label live, so they can be edited on the card page */
+function itemPath(id, item, variant) {
+  const g = DG()[id];
+  const base = `diagrams.${id}` + (g.layouts ? `.layouts.${variant}` : '');
+  const arr = item.isBand ? D.lay.bands : D.lay.nodes;
+  const i = arr.findIndex(x => x.id === item.id);
+  const p = `${base}.${item.isBand ? 'bands' : 'nodes'}.${i}`;
+  if (item.isBand) return { name: p + '.name', sub: p + '.name' };
+  /* a node with a per-variant override (CI/CD agent toggle) edits the override that is showing */
+  const raw = arr[i], v = g.layouts ? null : D.variant, o = raw && raw.variants && v ? raw.variants[v] : null;
+  return {
+    name: o && o.name ? `${p}.variants.${v}.name` : p + '.name',
+    sub: o && o.sub !== undefined ? `${p}.variants.${v}.sub` : p + '.sub'
+  };
+}
+
 function renderCard(id, item, variant) {
   const g = DG()[id];
   const d = item.detail || {};
   const P = detailPath(id, item, variant);
   const isBand = !!item.isBand;
-  const H = isBand ? PANELS_BAND : PANELS_NODE;
-  const name = Engine.stripTags(item.name).split('—')[0].trim();
+  const H = k => OZ.t(`card.${isBand ? 'band' : 'node'}.${k}`);
+  const IP = itemPath(id, item, variant);
 
-  $('#cCo').innerHTML = g.co;
-  $('#cName').textContent = name;
-  $('#cSub').textContent = isBand ? (Engine.stripTags(item.name).split('—')[1] || '').trim() : Engine.stripTags(String(item.sub || '')).replace(/\n/g, ' · ');
+  $('#cCo').innerHTML = OZ.ed(g.co, `diagrams.${id}.co`);
+  if (!OZ.editing) {
+    $('#cName').textContent = Engine.stripTags(item.name).split('—')[0].trim();
+    $('#cSub').textContent = isBand ? (Engine.stripTags(item.name).split('—')[1] || '').trim() : Engine.stripTags(String(item.sub || '')).replace(/\n/g, ' · ');
+  } else if (isBand) {
+    const parts = String(item.name).split('—').map(x => x.trim());
+    $('#cName').innerHTML = OZ.edAt(parts[0], IP.name, 'part', 0);
+    $('#cSub').innerHTML = OZ.edAt(parts.slice(1).join(' — '), IP.sub, 'part', 1);
+  } else {
+    $('#cName').innerHTML = String(item.name).split('\n').map((l, k) => OZ.edAt(l, IP.name, 'line', k)).join(' ');
+    $('#cSub').innerHTML = String(item.sub || '').split('\n').map((l, k) => OZ.edAt(l, IP.sub, 'line', k)).join(' · ');
+  }
 
   /* stepper: one step per layer; active = the layer this item belongs to */
   const bands = D.lay.bands || [];
@@ -333,29 +377,29 @@ function renderCard(id, item, variant) {
   const E = (v, p, cls) => OZ.ed(v || '', p, cls);
   const empty = ed ? '' : '<p class="empty">—</p>';
 
-  const p1 = `<div class="panel"><h4>${H[0]}</h4><div class="pbody">` +
+  const p1 = `<div class="panel"><h4>${H(0)}</h4><div class="pbody">` +
     ((d.head || ed) ? `<div class="lead">${E(d.head, P + '.head')}</div>` : '') +
     ((d.role || ed) ? `<p>${E(d.role, P + '.role')}</p>` : '') +
     (!d.head && !d.role ? empty : '') + `</div></div>`;
 
   const how = d.how || [];
-  const p2 = `<div class="panel"><h4>${H[1]}</h4><div class="pbody">` +
+  const p2 = `<div class="panel"><h4>${H(1)}</h4><div class="pbody">` +
     (how.length ? `<ul>${how.map((x, i) => `<li>${E(x, `${P}.how.${i}`)}${OZ.rowTools(P + '.how', i, 'New point')}</li>`).join('')}</ul>` : empty) +
     (ed ? OZ.addTool(P + '.how', 'New point', 'Add a point') : '') + `</div></div>`;
 
-  const p3 = `<div class="panel"><h4>${H[2]}</h4><div class="pbody">` +
+  const p3 = `<div class="panel"><h4>${H(2)}</h4><div class="pbody">` +
     ((d.dh || ed) ? `<div class="lead">${E(d.dh, P + '.dh')}</div>` : '') +
     ((d.dec || ed) ? `<p>${E(d.dec, P + '.dec')}</p>` : '') +
-    ((d.hard || ed) ? `<p class="hard"><b>Learned the hard way</b>${E(d.hard, P + '.hard')}</p>` : '') +
+    ((d.hard || ed) ? `<p class="hard"><b>${OZ.t('card.hard')}</b>${E(d.hard, P + '.hard')}</p>` : '') +
     (!d.dh && !d.dec && !d.hard ? empty : '') + `</div></div>`;
 
   const st = d.stack || [];
-  const p4 = `<div class="panel"><h4>${H[3]}</h4><div class="pbody">` +
+  const p4 = `<div class="panel"><h4>${H(3)}</h4><div class="pbody">` +
     (st.length ? st.map((s, i) => `<div class="kv1"><b>${E(s[0], `${P}.stack.${i}.0`)}</b><span>${E(s[1], `${P}.stack.${i}.1`)}${OZ.rowTools(P + '.stack', i, ['Key', 'Value'])}</span></div>`).join('') : empty) +
     (ed ? OZ.addTool(P + '.stack', ['Key', 'Value'], 'Add a row') : '') + `</div></div>`;
 
   $('#cPanels').innerHTML = p1 + p2 + p3 + p4;
-  $('#cRoom').innerHTML = `<h4>In the room</h4><p>${(d.say || ed) ? E(d.say, P + '.say') : '<span class="empty">—</span>'}</p>`;
+  $('#cRoom').innerHTML = `<h4>${OZ.t('card.room')}</h4><p>${(d.say || ed) ? E(d.say, P + '.say') : '<span class="empty">—</span>'}</p>`;
   $('.cbody').scrollTop = 0;
 
   const i = D.order.indexOf(item.id);
@@ -396,7 +440,7 @@ function lightStep(step) {
   (D.lay.edges || []).forEach((e, i) => {
     if (set.has(e[0]) && set.has(e[1])) { const g = canvas.querySelector(`[data-edge="${i}"] .edge`); if (g) g.classList.add('lit'); }
   });
-  $('#traceText').textContent = step.text;
+  $('#traceText').innerHTML = step.text;
 }
 function startTrace() {
   const T = D.lay.trace; if (!T || !T.length) return;
@@ -498,7 +542,7 @@ function show(name) {
 function route() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   current = { screen: 'home', parts, prev: current.screen };
-  if (!parts.length) { show('home'); buildMatrix(); requestAnimationFrame(sizePitch); return; }
+  if (!parts.length) { show('home'); buildHome(); buildMatrix(); requestAnimationFrame(sizePitch); return; }
   if (parts[0] === 'matrix') { current.screen = 'matrix'; buildMatrix(); show('matrix'); return; }
   if (parts[0] === 'sys' && DG()[parts[1]]) {
     if (parts[2]) { current.screen = 'card'; openCard(parts[1], parts.slice(2)); return; }
@@ -513,7 +557,7 @@ function route() {
       current.screen = 'diagram'; show('diagram'); openDiagram(co, keep); return;
     }
     if (sec === 'pain') { current.screen = 'view'; show('view'); renderPain(co); return; }
-    if (sec === 'problem') { current.screen = 'view'; show('view'); renderProblem(); return; }
+    if (sec === 'problem' && CO()[co].problem) { current.screen = 'view'; show('view'); renderProblem(co); return; }
     if (['poc', 'mvp', 'prod'].includes(sec)) { current.screen = 'view'; show('view'); renderPhase(co, sec); return; }
   }
   location.hash = '';
@@ -524,11 +568,12 @@ function rerender() {
   if (current.screen === 'diagram') { openDiagram(D.id, true); return; }
   if (current.screen === 'card') { openCard(current.cardId, current.cardRest); return; }
   if (current.screen === 'view') {
-    if (p[1] === 'problem') renderProblem();
+    if (p[1] === 'problem') renderProblem(p[0]);
     else if (p[1] === 'pain') renderPain(p[0]);
     else renderPhase(p[0], p[1]);
     return;
   }
+  if (current.screen === 'home') buildHome();
   buildMatrix();
 }
 
@@ -537,7 +582,6 @@ window.addEventListener('resize', () => {
   if (!SCREENS.diagram.hidden) fit();
   if (!SCREENS.home.hidden) sizePitch();
 });
-$('#openMatrix').addEventListener('click', () => { location.hash = '/matrix'; });
 $('#closeMatrix').addEventListener('click', () => { location.hash = ''; });
 $$('[data-nav]').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.nav === 'matrix' ? '/matrix' : ''; }));
 
@@ -576,6 +620,7 @@ OZ.ui = { D, layout, stage, canvas, paint, fit, applyTransform, toDiagram, openD
 
 /* ---------------- boot ---------------- */
 initPitch();
+buildHome();
 buildMatrix();
 route();
 

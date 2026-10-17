@@ -97,6 +97,7 @@ a{color:inherit;text-decoration:none}
   cursor:pointer;letter-spacing:.4px;
 }
 .cta:hover{background:var(--amber);color:#12100A}
+a.cta{display:block;text-align:center;text-decoration:none;box-sizing:border-box}
 .cta:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
 
 .quicknav{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
@@ -107,6 +108,7 @@ a{color:inherit;text-decoration:none}
 .qn:hover{border-color:var(--teal)}
 .qn b{display:block;font-size:10px;letter-spacing:1.1px;color:var(--teal);font-weight:500}
 .qn span{display:block;font-size:12px;color:var(--ink-dim);margin-top:3px}
+.qn .ed,.mcell .ed{display:inline;margin:0;font-size:inherit;color:inherit}
 
 /* ---------------- matrix ---------------- */
 .matrix{background:rgba(6,12,22,.97);position:fixed;inset:0;z-index:30;overflow:hidden}
@@ -450,6 +452,8 @@ svg.editing .n-hit{cursor:move}
 svg.editing .band{cursor:move}
 svg.editing .band-bg{pointer-events:all}
 svg.editing .edgewrap{cursor:pointer}
+svg.editing .sh-title,svg.editing .sh-sub,svg.editing .sh-leg{cursor:pointer}
+svg.editing .sh-title:hover,svg.editing .sh-sub:hover,svg.editing .sh-leg:hover{fill:var(--teal)}
 .edge-hit{stroke:transparent;stroke-width:16;fill:none;pointer-events:none}
 svg.editing .edge-hit{pointer-events:stroke}
 .handle{fill:var(--amber);stroke:var(--bg);stroke-width:2;cursor:nwse-resize}

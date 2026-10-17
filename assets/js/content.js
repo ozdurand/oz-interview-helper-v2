@@ -4,19 +4,6 @@
 
 const PITCH_DEFAULT = `I build and own a production multi-agent LLM platform at Johnson &amp; Johnson that serves biomedical scientists and drug-safety teams under FDA/EMA regulation. It's six agents — an orchestrator coordinating five specialists — running on Azure Kubernetes Service over 10,000-plus internal scientific documents. In production it cut research turnaround by 22%, reduced hallucination by roughly 18%, and sustains 120 concurrent sessions at p95 latency under 900 milliseconds. The hard part wasn't the model; it was making it grounded, auditable, and trustworthy enough to ship in a regulated pharma environment.`;
 
-const PROBLEM_STATEMENT = {
-  label: 'General use case',
-  sub: 'Why J&J needed a new knowledge platform',
-  title: 'Why J&J needed a new platform',
-  paragraphs: [
-    'At Johnson &amp; Johnson, a major challenge was that critical safety information was scattered across dozens of systems — clinical trials, adverse event reports, regulatory documents, and internal knowledge bases. When a potential safety signal appeared — an early warning that a drug or medical product might be causing an unexpected side effect or risk — analysts had to manually search through all of it to piece together the full picture. That process was slow, inconsistent, and risky, especially in an environment where missing a signal could impact patient safety and regulatory compliance.',
-    'The Generative AI platform was built to solve that. Instead of forcing teams to search in ten places, we created a single system that could retrieve, reason over, and summarize trusted internal evidence in seconds.',
-    'For example, if a pharmacovigilance analyst suspects a drug might be linked to liver toxicity, they can ask the system a direct question. Behind the scenes, the platform retrieves relevant clinical trial data, adverse event cases, and regulatory history, filters it by drug and condition, and feeds only that verified evidence into the language model. The response they get is not a guess — it is a grounded, traceable summary of what J&amp;J already knows, with citations to the original sources.',
-    'As the lead engineer, I was responsible for making sure this entire flow worked end-to-end: ingestion of sensitive documents, secure and compliant retrieval, hybrid search accuracy, and safe generation of answers. I worked with safety scientists, regulatory teams, and cloud engineers to ensure the system was not only technically sound, but trustworthy enough to support real safety decisions.',
-    'The result was a dramatic reduction in time spent searching for information, fewer duplicated analyses, and faster, more confident safety and regulatory decisions. We effectively turned J&amp;J’s fragmented knowledge into a single, reliable source of truth that teams could query in real time — which is exactly what modern enterprise AI is supposed to do.'
-  ]
-};
-
 const COMPANIES = {
 
   /* =============================== J&J =============================== */
@@ -24,6 +11,19 @@ const COMPANIES = {
     name: 'Johnson &amp; Johnson',
     kicker: 'Pharma',
     tag: 'Multi-agent GenAI · AKS',
+    problem: {
+      eyebrow: 'General use case',
+    label: 'General use case',
+    sub: 'Why J&J needed a new knowledge platform',
+    title: 'Why J&J needed a new platform',
+    paragraphs: [
+      'At Johnson &amp; Johnson, a major challenge was that critical safety information was scattered across dozens of systems — clinical trials, adverse event reports, regulatory documents, and internal knowledge bases. When a potential safety signal appeared — an early warning that a drug or medical product might be causing an unexpected side effect or risk — analysts had to manually search through all of it to piece together the full picture. That process was slow, inconsistent, and risky, especially in an environment where missing a signal could impact patient safety and regulatory compliance.',
+      'The Generative AI platform was built to solve that. Instead of forcing teams to search in ten places, we created a single system that could retrieve, reason over, and summarize trusted internal evidence in seconds.',
+      'For example, if a pharmacovigilance analyst suspects a drug might be linked to liver toxicity, they can ask the system a direct question. Behind the scenes, the platform retrieves relevant clinical trial data, adverse event cases, and regulatory history, filters it by drug and condition, and feeds only that verified evidence into the language model. The response they get is not a guess — it is a grounded, traceable summary of what J&amp;J already knows, with citations to the original sources.',
+      'As the lead engineer, I was responsible for making sure this entire flow worked end-to-end: ingestion of sensitive documents, secure and compliant retrieval, hybrid search accuracy, and safe generation of answers. I worked with safety scientists, regulatory teams, and cloud engineers to ensure the system was not only technically sound, but trustworthy enough to support real safety decisions.',
+      'The result was a dramatic reduction in time spent searching for information, fewer duplicated analyses, and faster, more confident safety and regulatory decisions. We effectively turned J&amp;J’s fragmented knowledge into a single, reliable source of truth that teams could query in real time — which is exactly what modern enterprise AI is supposed to do.'
+    ]
+    },
     phases: {
       poc: {
         label: 'POC', sub: 'Prove retrieval is viable',
@@ -83,7 +83,8 @@ const COMPANIES = {
         listTitle: 'What makes it prod-grade',
         list: [
           'Five specialists: Knowledge, Ontology, Drug Safety &amp; Compliance, QA, Summarization',
-          'Azure Service Bus with a dedicated request/response channel per agent',
+          'One-tool orchestrator: session, output safety and the trace run as code around every request',
+          'Azure Service Bus: a topic per agent with stable and canary subscriptions; only the orchestrator reads results',
           'Ontology resolved by closure-table metadata filtering, not a runtime graph traversal',
           'Seven-layer evaluation program gating releases',
           'Canary rings + KEDA autoscaling on AKS',
@@ -91,7 +92,7 @@ const COMPANIES = {
           'Full audit traceability for regulators'
         ],
         stack: [
-          ['Orchestrator', 'GPT-5.4 + 5 agents'], ['Messaging', 'Service Bus · per-agent channels'],
+          ['Orchestrator', 'GPT-5.4 + 5 agents'], ['Messaging', 'Service Bus · topic per agent'],
           ['Release', 'Rolling + canary · KEDA'], ['Security', 'Workload Identity'],
           ['Eval', '7-layer → CI'], ['Compliance', 'FDA / EMA audit trail']
         ]
@@ -101,7 +102,7 @@ const COMPANIES = {
       ['Ingestion', 'Scientific PDFs broke parsing', 'Multi-column layouts and tables scrambled into unusable chunks.', 'Azure Document Intelligence + layout-aware overlap chunking.'],
       ['Retrieval', 'Granularity vs. citation', 'Big chunks buried citations; small ones lost meaning; the index went stale on updates.', 'Hybrid retrieval, metadata filters, and a re-index path.'],
       ['Ontology', 'Concept expansion without a graph', 'Scientists ask about a parent concept and expect child terms; a runtime graph DB added infrastructure and a hallucination surface on the query itself.', 'Closure table built at ingestion stamps every chunk with its own entity IDs plus all ancestors — expansion becomes an index filter.'],
-      ['Orchestrator + agents', 'Coordination drift', 'Six moving parts meant versioning and hand-off drift across agents.', 'Per-agent request/response channels on Service Bus with the orchestrator as sole subscriber on results.'],
+      ['Orchestrator + agents', 'Coordination drift', 'Six moving parts meant versioning and hand-off drift across agents.', 'A topic per agent on Service Bus, with the orchestrator as the only reader of results.'],
       ['Generation', 'Confident, ungrounded answers', 'The model filled gaps fluently when retrieval was weak.', 'Enforced citations, output guardrails, refusal on low confidence.'],
       ['Eval / Ops', 'No ground truth, bursty load', 'Open Q&amp;A has no single right answer; 120 sessions arrive in spikes.', 'Seven-layer eval + SME review; KEDA, per-pod identity, canary rings.']
     ]
@@ -270,5 +271,41 @@ const COMPANIES = {
       ['Validation', 'The review bottleneck', 'The SR 11-7 review queue stalled releases and bred shortcuts.', 'Champion/challenger gates in CI that package evidence up front.'],
       ['Monitoring', 'Drift nobody saw', 'Models degraded slowly, with no signal until metrics fell.', 'Drift monitoring that triggers a governed retrain loop.']
     ]
+  }
+};
+
+/* Interface text. Every label below is editable in the browser (Edit mode)
+   and saved with the rest of the content. */
+const UI_TEXT = {
+  home: {
+    pitchTitle: 'Elevator pitch',
+    status: 'Systems · live',
+    hint: 'Editable · saves to this browser',
+    cta: 'Open the matrix',
+    cross: ['Cross-cutting', 'RAG pipeline · CI/CD']
+  },
+  matrix: {
+    title: 'The matrix',
+    sub: 'Company × maturity, plus the two pipelines that cut across all of them.',
+    sections: {
+      architecture: ['Architecture', 'Interactive map'],
+      problem: ['Problem statement', 'Why the platform exists'],
+      poc: ['POC', 'Prove it works'],
+      mvp: ['MVP', 'Make it real'],
+      prod: ['Production', 'Run it at scale'],
+      pain: ['Pain points', 'By layer']
+    },
+    sysTitle: 'Cross-cutting pipelines',
+    sysSub: 'The two systems that show up in every one of these roles',
+    rag: ['RAG pipeline', 'Index time, query time, quality'],
+    cicd: ['CI/CD pipeline', 'Agent microservice on AKS']
+  },
+  phase: { state: 'The state', goal: 'The goal', gate: 'Validation &amp; gate', stack: 'Stack' },
+  pain: { title: 'Pain points', sub: 'By layer', pain: 'Pain', fix: 'Fix' },
+  card: {
+    node: ['The role', 'How it works', 'The decision', 'Stack'],
+    band: ['What it’s for', 'What’s inside', 'The boundary', 'Stack'],
+    hard: 'Learned the hard way',
+    room: 'In the room'
   }
 };

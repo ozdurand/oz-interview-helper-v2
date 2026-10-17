@@ -22,20 +22,20 @@
     <section class="pitch" aria-labelledby="pitchLabel">
       <div class="pitch-head">
         <h2 id="pitchLabel">Elevator pitch</h2>
-        <span class="statusline"><span class="dot"></span> Systems · live</span>
+        <span class="statusline"><span class="dot"></span> <span id="statusTxt">Systems · live</span></span>
         <span class="saveflag" id="saveFlag">Saved</span>
       </div>
       <div class="pitch-body" id="pitchText" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true"></div>
       <div class="pitch-foot">
         <span id="wordCount">0 words</span>
-        <span class="hint">Editable · saves to this browser</span>
+        <span class="hint" id="pitchHint">Editable · saves to this browser</span>
         <button type="button" class="linkish" id="resetPitch">Reset to original</button>
       </div>
     </section>
 
-    <button type="button" class="cta" id="openMatrix">Open the matrix</button>
+    <a class="cta" id="openMatrix" href="#/matrix">Open the matrix</a>
 
-    <nav class="quicknav" aria-label="Jump to a company">
+    <nav class="quicknav" id="quicknav" aria-label="Jump to a company">
       <a class="qn" href="#/jj/architecture"><b>Pharma</b><span>Johnson &amp; Johnson</span></a>
       <a class="qn" href="#/hd/architecture"><b>Retail</b><span>Home Depot</span></a>
       <a class="qn" href="#/citi/architecture"><b>Banking</b><span>Citibank</span></a>
@@ -49,8 +49,8 @@
 <div id="matrix" class="screen matrix" hidden>
   <div class="matrix-head">
     <div>
-      <h2>The matrix</h2>
-      <p>Company × maturity, plus the two pipelines that cut across all of them.</p>
+      <h2 id="mTitle">The matrix</h2>
+      <p id="mSub">Company × maturity, plus the two pipelines that cut across all of them.</p>
     </div>
     <button type="button" class="ghost" id="closeMatrix">Close</button>
   </div>
