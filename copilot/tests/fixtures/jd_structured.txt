@@ -1,0 +1,28 @@
+Senior GenAI Solutions Architect
+
+About us
+Northwind Health is a fictional life-sciences company used for testing. We value curiosity.
+
+What you'll do:
+- Design and lead the architecture of multi-agent LLM applications on Azure, from proof of concept to production
+- Build retrieval-augmented generation (RAG) pipelines over regulated scientific documents
+- Set up evaluation with golden datasets and RAGAS, and gate releases on the results
+- Partner with stakeholders in research and drug safety to turn needs into roadmaps
+
+Requirements:
+- 7+ years of software engineering experience, 2+ years building with LLMs
+- Strong Python and FastAPI; experience deploying containers on AKS / Kubernetes
+- Hands-on experience with Azure OpenAI, Azure AI Search and vector search
+- Experience with CI/CD (GitHub Actions or Azure DevOps) and infrastructure as code (Terraform or Bicep)
+- Experience with LangGraph or Semantic Kernel
+- Experience in GxP or other regulated environments
+- Bachelor's degree in Computer Science or equivalent
+
+Nice to have:
+- Fine-tuning with LoRA
+- Experience with Snowflake
+- Knowledge graphs or ontologies (MeSH, MedDRA)
+
+Benefits
+- Health insurance and 401(k)
+This role is hybrid, 3 days on-site in New Jersey. Visa sponsorship is not available.

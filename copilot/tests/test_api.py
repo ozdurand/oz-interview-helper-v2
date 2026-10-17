@@ -113,3 +113,38 @@ def test_misconfigured_embeddings_do_not_take_the_service_down(tmp_path, monkeyp
         h = c.get("/health").json()
         assert h["ok"] and h["dense"] == "failed" and h["retrievers"] == ["bm25", "chars"]
         assert c.get("/search", params={"q": "Why a topic per agent?"}, headers=H).status_code == 200
+
+
+def test_applications_lifecycle(client, tmp_path):
+    from pathlib import Path
+    text = (Path(__file__).parent / "fixtures" / "jd_structured.txt").read_text()
+    assert client.post("/applications", json={"text": text}).status_code == 401
+    assert client.post("/applications", json={"text": "too short"}, headers=H).status_code == 422
+
+    r = client.post("/jd/analyze", json={"text": text}, headers=H)
+    assert r.status_code == 200 and r.json()["coverage"]["summary"]["requirements"] >= 10
+    assert not (tmp_path / "applications").exists() or not list((tmp_path / "applications").iterdir())
+
+    r = client.post("/applications", json={"text": text, "company": "Northwind"}, headers=H)
+    assert r.status_code == 200
+    rec = r.json()
+    assert rec["title"] == "Senior GenAI Solutions Architect" and rec["company"] == "Northwind"
+    assert (tmp_path / "applications" / f"{rec['id']}.json").exists()
+
+    lst = client.get("/applications", headers=H).json()["applications"]
+    assert [a["id"] for a in lst] == [rec["id"]] and 0 < lst[0]["must_score"] <= 1
+
+    r = client.post(f"/applications/{rec['id']}/refresh", json={"title": "Principal GenAI Architect"}, headers=H)
+    assert r.status_code == 200 and r.json()["title"] == "Principal GenAI Architect"
+    assert client.get(f"/applications/{rec['id']}", headers=H).json()["title"] == "Principal GenAI Architect"
+
+    assert client.get("/applications/..%2F..%2Fexport", headers=H).status_code == 404
+    assert client.delete(f"/applications/{rec['id']}", headers=H).json() == {"deleted": rec["id"]}
+    assert client.get(f"/applications/{rec['id']}", headers=H).status_code == 404
+
+
+def test_cors_allows_delete_from_the_site(client):
+    r = client.options("/applications/app-20261017-abcdef", headers={
+        "Origin": "https://ozdurand.github.io", "Access-Control-Request-Method": "DELETE",
+        "Access-Control-Request-Headers": "authorization"})
+    assert r.status_code == 200 and "DELETE" in r.headers["access-control-allow-methods"]
