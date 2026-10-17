@@ -1,6 +1,6 @@
 # Copilot retrieval test
 
-Knowledge base: **748 entries** · retrievers: **bm25, chars** fused by reciprocal rank (k = 60) · about 1.06 ms per query
+Knowledge base: **748 entries** · retrievers: **bm25, chars** fused by reciprocal rank (k = 60) · about 1.19 ms per query
 
 | Run | Questions | Recall@1 | Recall@3 | Recall@5 | MRR@10 |
 |---|---|---|---|---|---|

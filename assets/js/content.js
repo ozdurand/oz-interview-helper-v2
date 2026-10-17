@@ -285,7 +285,12 @@ const UI_TEXT = {
     hint: 'Editable · saves to this browser',
     reset: 'Reset to original',
     cta: 'Open the matrix',
+    apps: 'Applications',
     cross: ['Cross-cutting', 'RAG pipeline · CI/CD']
+  },
+  apps: {
+    title: 'Applications',
+    sub: 'a job description against your dossier'
   },
   matrix: {
     title: 'The matrix',

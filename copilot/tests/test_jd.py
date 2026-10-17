@@ -77,3 +77,25 @@ def test_html_posting_is_read_as_lines():
     p = jd.parse_jd("<h2>Requirements</h2><ul><li>Experience with Azure OpenAI and RAG</li><li>Python and FastAPI</li></ul>"
                     "<h2>Benefits</h2><p>Dental plan for the whole family</p>")
     assert [r["text"] for r in p["requirements"]] == ["Experience with Azure OpenAI and RAG", "Python and FastAPI"]
+
+
+@pytest.mark.parametrize("text,missing", [
+    # either product in an "or" list is enough; the dossier names GitHub Actions and Terraform
+    ("Experience with CI/CD (GitHub Actions or Azure DevOps) and infrastructure as code (Terraform or Bicep)", []),
+    ("Hands-on with Kafka, RabbitMQ or Event Hubs", []),
+    # with "and", every named product counts
+    ("Experience with Jenkins and Argo CD", ["Argo CD"]),
+    ("Production experience with Airflow and dbt", ["Airflow", "dbt"]),
+    ("Experience with PyTorch or TensorFlow", ["PyTorch", "TensorFlow"]),
+])
+def test_named_products_need_the_dossier_to_name_them(index, text, missing):
+    assert jd._named_missing(text, jd._named_map(index)) == missing
+
+
+def test_a_named_product_the_dossier_lacks_is_at_most_partly_covered(index):
+    posting = ("Requirements:\n- Experience building multi-agent systems on Azure with Service Bus messaging and Airflow and dbt pipelines\n"
+               "- Experience with Python and FastAPI\n")
+    rows = jd.analyze(posting, index)["coverage"]["rows"]
+    r = find(rows, "Experience building multi-agent")
+    assert r["status"] in ("partial", "gap") and {"Airflow", "dbt"} <= set(r["missing_skills"])
+    assert r["status"] == "gap" or "never names Airflow or dbt" in r["note"]

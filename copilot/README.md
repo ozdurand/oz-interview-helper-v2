@@ -1,4 +1,4 @@
-# Copilot backend — phase 0
+# Copilot backend — phases 0 and 1
 
 Your dossier as a searchable knowledge base, behind a small signed-in API.
 Phase 0 is the foundation the practice copilot and prep tools build on:
@@ -19,12 +19,44 @@ ship `index.html`, `.nojekyll` and `assets/`).
                       reciprocal rank (k = 60); filters applied before ranking
       embeddings.py   optional dense retrieval — Azure OpenAI or OpenAI
       auth.py         sign-in: one long token, or Microsoft Entra ID
-      api.py          FastAPI: /health, /ingest, /search, /entries/{id}
+      jd.py           phase 1: job description → coverage, prep guide, résumé draft
+      api.py          FastAPI: /health, /ingest, /search, /entries/{id}, /jd/analyze,
+                      /applications
     scripts/export_shipped.js   shipped content → data/shipped-export.json
     eval/             retrieval test (golden sets + report)
-    tests/            25 tests: knowledge base, search, API, both sign-in modes,
-                      embeddings outages
+    tests/            39 tests: knowledge base, search, API, both sign-in modes,
+                      embeddings outages, job descriptions and applications
     deploy/azure/     Bicep template, deploy script, GitHub roll-out set-up
+
+## Phase 1 — applications
+
+On the site, **Applications** (home page button, `#/apps`): paste a job
+description and the copilot returns, from your dossier only:
+
+- **Coverage** — each requirement (must / nice-to-have / role / logistics)
+  marked *covered*, *partly* or *gap*, with the dossier answers that back it.
+  A product the posting names (Kafka, Terraform, Airflow…) counts only if the
+  dossier names it too; "X or Y" is covered by either. Years, degrees and
+  logistics are left for you to answer.
+- **Prep guide** — stories to lead with, the questions they're likely to ask
+  with your dossier answers, gaps to prepare for, "to confirm" items, and
+  questions to ask them.
+- **Résumé draft** — bullets taken from dossier entries in dossier order, plus
+  what it left out because the dossier doesn't show it. Copy or download as
+  Markdown.
+
+No language model is involved: parsing uses the posting's own structure and a
+skills vocabulary (`copilot/jd.py`), and coverage reuses the hybrid search.
+
+| Endpoint | |
+|---|---|
+| `POST /jd/analyze` | analyse a posting without saving |
+| `POST /applications` | analyse and save (`text`, optional `title`, `company`) |
+| `GET /applications`, `GET /applications/{id}` | list, open |
+| `POST /applications/{id}/refresh` | re-run against the current dossier (after you send new edits) |
+| `DELETE /applications/{id}` | delete |
+
+Applications are kept in `DATA_DIR/applications/` (the Azure file share).
 
 ## How content gets in
 

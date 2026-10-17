@@ -206,6 +206,7 @@ function buildHome() {
   $('#pitchHint').innerHTML = OZ.t('home.hint');
   $('#resetSlide').innerHTML = OZ.t('home.reset');
   $('#openMatrix').innerHTML = OZ.t('home.cta');
+  $('#openApps').innerHTML = OZ.t('home.apps');
   $('#quicknav').innerHTML = QUICK.map(([id, href]) => {
     const c = CO()[id];
     return `<a class="qn" href="${href}"><b>${OZ.ed(c.kicker, `companies.${id}.kicker`)}</b><span>${OZ.ed(c.name, `companies.${id}.name`)}</span></a>`;
@@ -962,7 +963,7 @@ stage.addEventListener('wheel', e => {
 }, { passive: false });
 
 /* ---------------- routing ---------------- */
-const SCREENS = { home: $('#home'), matrix: $('#matrix'), view: $('#view'), diagram: $('#diagram'), card: $('#card') };
+const SCREENS = { home: $('#home'), matrix: $('#matrix'), view: $('#view'), diagram: $('#diagram'), card: $('#card'), apps: $('#apps') };
 let current = { screen: 'home' };
 
 function show(name) {
@@ -978,6 +979,7 @@ function route() {
   current = { screen: 'home', parts, prev: current.screen };
   if (!parts.length) { show('home'); buildHome(); buildMatrix(); requestAnimationFrame(fitAll); return; }
   if (parts[0] === 'matrix') { current.screen = 'matrix'; buildMatrix(); show('matrix'); return; }
+  if (parts[0] === 'apps') { current.screen = 'apps'; show('apps'); if (window.OZ && OZ.apps) OZ.apps.open(parts[1]); return; }
   if (parts[0] === 'sys' && DG()[parts[1]]) {
     if (parts[2]) { current.screen = 'card'; openCard(parts[1], parts.slice(2)); return; }
     const keep = D.id === parts[1] && !SCREENS.diagram.hidden ? true : D.id === parts[1] && current.prev === 'card';
@@ -1005,6 +1007,7 @@ function rerender() {
     else if (p[1] === 'eval') renderEval(p[0]);
     return;
   }
+  if (current.screen === 'apps') { if (window.OZ && OZ.apps) OZ.apps.rerender(); return; }
   if (current.screen === 'home') buildHome();
   buildMatrix();
 }

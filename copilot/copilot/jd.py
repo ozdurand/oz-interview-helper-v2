@@ -103,6 +103,40 @@ def find_skills(text: str) -> list[str]:
     return [n for n, _, rx in SKILLS if rx.search(t)]
 
 
+# Named products inside the broader skill groups above. A group can be covered
+# by related work (Azure Service Bus covers "messaging"), but a posting that
+# names a product is only covered when the dossier names that product too —
+# otherwise the requirement is at most "partly", with the product listed as missing.
+_NAMED_SRC: list[tuple[str, str, str]] = [  # name, family, pattern
+    ("Kafka", "messaging", r"\bkafka\b"), ("Event Hubs", "messaging", r"event hubs?"),
+    ("Pub/Sub", "messaging", r"\bpub/?sub\b"), ("RabbitMQ", "messaging", r"rabbitmq"),
+    ("Terraform", "iac", r"terraform"), ("Pulumi", "iac", r"pulumi"), ("Bicep", "iac", r"\bbicep\b"),
+    ("CloudFormation", "iac", r"cloudformation"),
+    ("Jenkins", "cicd", r"jenkins"), ("Argo CD", "cicd", r"argo ?cd"), ("GitHub Actions", "cicd", r"github actions"),
+    ("Azure DevOps", "cicd", r"azure devops"), ("GitLab CI", "cicd", r"gitlab"),
+    ("Prometheus", "obs", r"prometheus"), ("Grafana", "obs", r"grafana"), ("OpenTelemetry", "obs", r"opentelemetry"),
+    ("Datadog", "obs", r"datadog"), ("Splunk", "obs", r"splunk"),
+    ("PyTorch", "dl", r"pytorch"), ("TensorFlow", "dl", r"tensorflow"),
+    ("Neo4j", "db", r"neo4j"), ("PostgreSQL", "db", r"postgres"), ("MongoDB", "db", r"mongo ?db"),
+    ("Elasticsearch / OpenSearch", "db", r"elastic ?search|opensearch"),
+    ("AWS Lambda", "serverless", r"\blambda\b"), ("Azure Functions", "serverless", r"azure functions"),
+    ("Bedrock", "aws", r"bedrock"), ("SageMaker", "aws", r"sagemaker"), ("Vertex AI", "gcp", r"vertex ai"),
+    ("Airflow", "pipelines", r"airflow"), ("dbt", "pipelines", r"\bdbt\b"), ("Delta Lake", "pipelines", r"delta lake"),
+    ("Weaviate", "vector", r"weaviate"), ("Chroma", "vector", r"\bchroma(db)?\b"), ("Milvus", "vector", r"milvus"),
+    ("Qdrant", "vector", r"qdrant"), ("pgvector", "vector", r"pgvector"),
+    ("Kubeflow", "serving", r"kubeflow"), ("vLLM", "serving", r"\bvllm\b"), ("Triton", "serving", r"\btriton\b"),
+    ("Streamlit", "ui", r"streamlit"),
+]
+NAMED = [(n, re.compile(p)) for n, _, p in _NAMED_SRC]
+NAMED_FAMILY = {n: f for n, f, _ in _NAMED_SRC}
+_OR = re.compile(r"\bor\b|\beither\b", re.I)
+
+
+def find_named(text: str) -> list[str]:
+    t = " " + plain(text).lower() + " "
+    return [n for n, rx in NAMED if rx.search(t)]
+
+
 # ---------------------------------------------------------------- parse ---
 _HEAD_KIND = [  # first match wins: specific before general
     ("other", r"about (us|the company|our)|who we are|benefits|compensation|salary|pay range|perks|equal (opportunity|employment)|\beeo\b|our (culture|values|mission)|why join|what we offer|location"),
@@ -248,6 +282,18 @@ def _skill_map(index: Index) -> dict[str, list[int]]:
     return m
 
 
+def _named_map(index: Index) -> dict[str, bool]:
+    """named product → does any dossier entry name it. Cached on the index."""
+    m = getattr(index, "_jd_named_map", None)
+    if m is None:
+        found: set[str] = set()
+        for e in index.entries:
+            found.update(find_named(f"{e.title} {e.text}"))
+        m = {n: n in found for n, _ in NAMED}
+        setattr(index, "_jd_named_map", m)
+    return m
+
+
 def _terms(text: str) -> set[str]:
     return {t for t in tokens(text) if t not in _JD_STOP and not t.isdigit() and len(t) > 1}
 
@@ -265,8 +311,25 @@ def _clip(s: str, n: int) -> str:
     return cut.rstrip(",;:—- ") + "…"
 
 
+def _named_missing(text: str, nmap: dict[str, bool]) -> list[str]:
+    """Named products in a requirement the dossier never names. "GitHub Actions or Azure DevOps" is
+    satisfied by either one: with "or" in the requirement, a family counts as covered when the
+    dossier names any of the products listed from it."""
+    named = find_named(text)
+    if _OR.search(text):
+        have = {NAMED_FAMILY[n] for n in named if nmap.get(n)}
+        return [n for n in named if not nmap.get(n) and NAMED_FAMILY[n] not in have]
+    return [n for n in named if not nmap.get(n)]
+
+
+def _join(xs: list[str]) -> str:
+    return xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " or " + xs[-1]
+
+
 def coverage(parsed: dict, index: Index) -> dict:
     smap = _skill_map(index)
+    nmap = _named_map(index)
+    named_left_out: list[str] = []
     rows = []
     for r in parsed["requirements"]:
         if r["kind"] == "logistics":
@@ -294,8 +357,19 @@ def coverage(parsed: dict, index: Index) -> dict:
                 if index.entries[i].id not in shown:
                     evidence.append(_ev(index.entries[i], f"mentions {s}"))
                     shown.add(index.entries[i].id)
+        named_missing = _named_missing(r["text"], nmap)
+        named_left_out += [n for n in named_missing if n not in named_left_out]
+        if named_missing:
+            if status == "strong":
+                status = "partial"
+            missing += [n for n in named_missing if n not in missing]
         closest = _ev(hits[0].entry, "closest") if hits and status == "gap" else None
-        note = f"The dossier can't show {r['years']}+ years — state your years yourself." if r.get("years") else None
+        notes = []
+        if named_missing and status != "gap":
+            notes.append(f"The dossier shows related work but never names {_join(named_missing)} — be ready to say how your experience carries over.")
+        if r.get("years"):
+            notes.append(f"The dossier can't show {r['years']}+ years — state your years yourself.")
+        note = " ".join(notes) or None
         rows.append({**r, "status": status, "overlap": round(overlap, 2), "covered_skills": covered, "missing_skills": missing,
                      "evidence": evidence[:4], "closest": closest, "note": note})
 
@@ -311,7 +385,7 @@ def coverage(parsed: dict, index: Index) -> dict:
             "not_applicable": counts["n/a"],
             "must_score": round(sum(pts[x["status"]] for x in must) / len(must), 2) if must else None,
             "skills_matched": [s for s in jd_skills if smap.get(s)],
-            "skills_missing": [s for s in jd_skills if not smap.get(s)],
+            "skills_missing": [s for s in jd_skills if not smap.get(s)] + named_left_out,
         },
     }
 
