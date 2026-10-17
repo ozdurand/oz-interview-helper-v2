@@ -10,7 +10,7 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
                               (kept for the journey page), pain points, and every interface label (UI_TEXT)
     assets/js/diagrams.js     J&J, Home Depot, Citibank interactive maps
     assets/js/diagrams2.js    RAG pipeline, CI/CD pipeline
-    assets/js/interview.js    each box and layer as interview answers (J&J so far)
+    assets/js/interview.js    every box and layer as interview answers (all five maps)
     assets/js/store.js        working copy of all content, browser persistence, undo/redo
     assets/js/engine.js       SVG renderer (nodes, edges, bands, wrapping)
     assets/js/app.js          routing, matrix, views, pan/zoom, deck, trace
@@ -37,8 +37,8 @@ root of the `oz-interview-helper` repo and GitHub Pages serves it as-is.
   answer tagged **to confirm** is built on general reasoning rather than your
   own notes; check it matches what you did before you use it. **Reference**
   (top right) switches to the original technical panels and stays switched
-  until you switch back. J&J has interview answers; the other maps show the
-  original panels until theirs are written.
+  until you switch back. Every box and layer on all five maps has interview
+  answers.
 
 ## Editing in the browser
 
