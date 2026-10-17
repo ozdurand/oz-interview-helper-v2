@@ -9,6 +9,7 @@ Retrievers
 """
 from __future__ import annotations
 
+import logging
 import math
 import re
 from collections import Counter, defaultdict
@@ -16,6 +17,8 @@ from dataclasses import dataclass
 from typing import Iterable, Sequence
 
 from .kb import Entry
+
+log = logging.getLogger("copilot.search")
 
 # ------------------------------------------------------------ text prep ---
 STOP = set("""a an the and or but if of to in on at by for with from as is are was were be been being it its this that these
@@ -187,12 +190,25 @@ class Index:
         self.chars = CharGrams([f"{e.title} {e.text}" for e in entries])
         self.embedder = embedder
         self.vectors = None
+        self.dense_error: str | None = None
         if embedder is not None:
-            self.vectors = embedder.embed_entries(entries)
+            # a bad key or an outage must not take the service down: fall back to the keyword retrievers
+            try:
+                self.vectors = embedder.embed_entries(entries)
+            except Exception as ex:  # noqa: BLE001
+                self.dense_error = f"{type(ex).__name__}: {ex}"[:300]
+                log.warning("embeddings unavailable, keyword retrievers only: %s", self.dense_error)
 
     @property
     def retrievers(self) -> list[str]:
         return ["bm25", "chars"] + (["dense"] if self.vectors is not None else [])
+
+    @property
+    def dense(self) -> str:
+        """off (not configured) | on | failed — safe to show without sign-in."""
+        if self.embedder is None:
+            return "off"
+        return "on" if self.vectors is not None else "failed"
 
     def _allowed(self, company=None, map=None, kinds=None, variant=None, exclude_ids=None, exclude_kinds=None) -> set[int] | None:
         if not any([company, map, kinds, variant, exclude_ids, exclude_kinds]):
@@ -222,8 +238,11 @@ class Index:
         c = self.chars.scores(query, allowed)
         ranked["chars"] = sorted(c, key=c.get, reverse=True)[:depth]
         if self.vectors is not None:
-            d = self.embedder.scores(query, self.vectors, allowed)
-            ranked["dense"] = sorted(d, key=d.get, reverse=True)[:depth]
+            try:
+                d = self.embedder.scores(query, self.vectors, allowed)
+                ranked["dense"] = sorted(d, key=d.get, reverse=True)[:depth]
+            except Exception as ex:  # noqa: BLE001 — answer from the keyword retrievers rather than fail the request
+                log.warning("query embedding failed, keyword retrievers only: %s: %s", type(ex).__name__, str(ex)[:200])
         fused: dict[int, float] = defaultdict(float)
         where: dict[int, dict] = defaultdict(dict)
         for name, lst in ranked.items():

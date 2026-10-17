@@ -22,7 +22,9 @@ ship `index.html`, `.nojekyll` and `assets/`).
       api.py          FastAPI: /health, /ingest, /search, /entries/{id}
     scripts/export_shipped.js   shipped content → data/shipped-export.json
     eval/             retrieval test (golden sets + report)
-    tests/            22 tests: knowledge base, search, API, both sign-in modes
+    tests/            25 tests: knowledge base, search, API, both sign-in modes,
+                      embeddings outages
+    deploy/azure/     Bicep template, deploy script, GitHub roll-out set-up
 
 ## How content gets in
 
@@ -72,17 +74,87 @@ Current numbers are in `eval/report.md`. The misses there are paraphrases
 with no shared words, which is the gap embeddings close: rerun with
 `EMBEDDINGS=azure` (or `openai`) set to compare.
 
-## Deploy
+## Deploy to Azure Container Apps
 
-Any container host works:
+What gets created, in its own resource group (`deploy/azure/main.bicep`):
+
+| Resource | Why |
+|---|---|
+| Container app `oz-copilot` | the API over HTTPS; 0.25 vCPU / 0.5 GiB; scales to zero when idle; one replica (the index lives in memory, so `/ingest` must rebuild the copy that answers `/search`) |
+| Container Apps environment | Consumption profile |
+| Storage account + `copilot-data` file share | mounted at `/data`: the latest export you sent and the embedding cache survive restarts and new versions |
+| Log Analytics workspace | app logs, 30-day retention, 1 GB/day cap |
+
+Cost: a personal-use API sits inside the Container Apps monthly free grant
+(180,000 vCPU-seconds, 360,000 GiB-seconds, 2 million requests per
+subscription); the file share and logs come to cents. The image lives on
+GitHub's registry, so there is no Azure Container Registry to pay for. The
+first request after a quiet spell waits a few seconds while it scales up from
+zero — set `MIN_REPLICAS=1` to keep it warm (that uses the free grant up
+faster).
+
+### 1. The image (automatic)
+
+Every push to `main` that touches the copilot runs the tests, builds
+`ghcr.io/ozdurand/oz-copilot` (tagged with the commit and `latest`),
+starts it and checks `/health`, sign-in and that `/data` is writable. The run
+summary says whether Azure can pull it without a password; if it says the
+package is private, make it public once at
+<https://github.com/users/ozdurand/packages/container/oz-copilot/settings>
+(it holds only code that is already public here — your edits never go into
+the image, they live in the file share).
+
+### 2. Deploy (once, about 5 minutes)
+
+In [Azure Cloud Shell](https://shell.azure.com) (Bash):
+
+    git clone https://github.com/ozdurand/oz-interview-helper-v2
+    bash oz-interview-helper-v2/copilot/deploy/azure/deploy.sh
+
+Defaults: resource group `oz-copilot-rg` in `eastus`; set `LOCATION=westeurope`
+(or another region) in front of the command to change it. The script
+registers the resource providers, pins the newest image by digest, generates a
+48-character sign-in token, deploys, then checks `/health`, that search
+without the token is refused, that search with it works, and that the site
+is allowed to call it. It prints the address and the token — save the token
+in your password manager.
+
+Then, in the site: **Edit → Send to copilot**, paste the address and the token.
+
+Run the script again any time: it keeps the token and settings and rolls
+forward to the newest image. `SHOW_TOKEN=1` prints the token again.
+
+**Embeddings (optional).** With an Azure OpenAI embeddings deployment:
+
+    EMBEDDINGS=azure AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com \
+    AZURE_OPENAI_EMBED_DEPLOYMENT=<deployment> AZURE_OPENAI_API_KEY=<key> \
+    bash oz-interview-helper-v2/copilot/deploy/azure/deploy.sh
+
+(or `EMBEDDINGS=openai OPENAI_API_KEY=…`). The key is stored as a container
+app secret. If the key is wrong or the provider is down, the API keeps
+answering with the keyword retrievers and `/health` shows `"dense": "failed"`.
+
+### 3. Automatic roll-outs from GitHub (optional)
+
+    bash oz-interview-helper-v2/copilot/deploy/azure/github-oidc.sh
+
+Creates an app registration that trusts only workflow runs on this repo's
+`main` (OpenID Connect — no Azure password stored in GitHub), gives it
+Contributor on the copilot's resource group only, and prints five repository
+variables to add (or sets them with `gh`). From then on each push to `main`
+that touches the copilot rolls out a new revision and waits until it answers.
+
+### Useful commands
+
+    az containerapp logs show -n oz-copilot -g oz-copilot-rg --tail 100      # logs
+    az containerapp revision list -n oz-copilot -g oz-copilot-rg -o table    # versions
+    az containerapp secret show -n oz-copilot -g oz-copilot-rg --secret-name copilot-token --query value -o tsv
+    az group delete -n oz-copilot-rg                                         # remove everything
+
+To change the token: `COPILOT_TOKEN=<new 24+ chars> bash …/deploy.sh`, then
+paste the new one in the site (**Send to copilot** asks again after a 401).
+
+### Any other container host
 
     docker build -t oz-copilot copilot/
     docker run -p 8000:8000 -e COPILOT_TOKEN=… -v copilot-data:/data oz-copilot
-
-On Azure Container Apps (check the flags against your `az` version):
-
-    az containerapp up --name oz-copilot --resource-group <rg> --source copilot \
-      --ingress external --target-port 8000 --env-vars AUTH_MODE=token COPILOT_TOKEN=secretref:copilot-token
-
-Store the token as a secret, mount Azure Files at `/data` so the latest export
-survives restarts, then point the site's **Send to copilot** at the app's URL.

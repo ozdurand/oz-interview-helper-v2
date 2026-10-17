@@ -15,6 +15,7 @@ Settings (environment):
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
@@ -32,6 +33,7 @@ from .search import Index
 
 PKG = Path(__file__).resolve().parent.parent
 SHIPPED = PKG / "data" / "shipped-export.json"
+log = logging.getLogger("copilot.api")
 
 
 class State:
@@ -48,9 +50,16 @@ class State:
 
     def build(self, export: dict, source: str) -> dict:
         entries = build_entries(export)
-        idx = Index(entries, embeddings.from_env(self.data_dir))
+        try:
+            emb = embeddings.from_env(self.data_dir)
+        except KeyError as ex:  # EMBEDDINGS is set but a required setting is missing
+            log.warning("embeddings misconfigured (missing %s), keyword retrievers only", ex)
+            emb = None
+        idx = Index(entries, emb)
+        dense = "failed" if emb is None and os.environ.get("EMBEDDINGS") else idx.dense
         meta = {"source": source, "exportedAt": export.get("exportedAt"), "hasEdits": export.get("hasEdits"),
-                "builtAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "retrievers": idx.retrievers, **summary(entries)}
+                "builtAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "retrievers": idx.retrievers,
+                "dense": dense, **summary(entries)}
         with self.lock:
             self.index, self.meta = idx, meta
         return meta
@@ -61,8 +70,8 @@ class State:
             try:
                 self.build(json.loads(saved.read_text()), "export")
                 return
-            except Exception:
-                pass
+            except Exception as ex:  # noqa: BLE001
+                log.warning("saved export unreadable, starting from the shipped content: %s", ex)
         self.build(json.loads(SHIPPED.read_text()), "shipped")
 
 
@@ -92,7 +101,7 @@ def _index() -> Index:
 @app.get("/health")
 def health() -> dict:
     _index()
-    return {"ok": True, **{k: STATE.meta.get(k) for k in ("source", "entries", "retrievers", "exportedAt", "builtAt", "to_confirm")}}
+    return {"ok": True, **{k: STATE.meta.get(k) for k in ("source", "entries", "retrievers", "dense", "exportedAt", "builtAt", "to_confirm")}}
 
 
 @app.post("/ingest")

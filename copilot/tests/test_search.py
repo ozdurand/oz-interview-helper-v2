@@ -40,3 +40,30 @@ def test_reports_which_retrievers_ranked_it(index):
 
 def test_tokens_stem_and_drop_stopwords():
     assert tokens("How did you evaluate the indexes?") == ["how", "evalu", "index"]
+
+
+class _BrokenEmbedder:
+    """Stands in for a wrong key or an outage at the embeddings provider."""
+    def __init__(self, fail_on_entries=True):
+        self.fail_on_entries = fail_on_entries
+
+    def embed_entries(self, entries):
+        if self.fail_on_entries:
+            raise RuntimeError("401 Unauthorized")
+        return [[1.0, 0.0] for _ in entries]
+
+    def scores(self, query, vectors, allowed):
+        raise RuntimeError("429 Too Many Requests")
+
+
+def test_embeddings_outage_at_startup_falls_back_to_keywords(shipped):
+    idx = Index(build_entries(shipped), _BrokenEmbedder())
+    assert idx.retrievers == ["bm25", "chars"] and idx.dense == "failed" and "401" in idx.dense_error
+    assert idx.search("Why a topic per agent?", k=3)[0].entry.group.startswith("jj/")
+
+
+def test_embeddings_outage_at_query_time_still_answers(shipped):
+    idx = Index(build_entries(shipped), _BrokenEmbedder(fail_on_entries=False))
+    assert idx.dense == "on"
+    hits = idx.search("Why a topic per agent?", k=3)
+    assert hits and all("dense" not in h.ranks for h in hits)

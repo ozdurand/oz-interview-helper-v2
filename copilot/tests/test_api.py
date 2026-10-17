@@ -98,3 +98,18 @@ def test_entra_mode(client, monkeypatch):
     assert client.get("/search", params={"q": "bus"}, headers=tok(oid="someone-else")).status_code == 403
     assert client.get("/search", params={"q": "bus"}, headers=tok(aud="api://other")).status_code == 401
     assert client.get("/search", params={"q": "bus"}, headers=tok(exp=int(time.time()) - 5)).status_code == 401
+
+
+def test_misconfigured_embeddings_do_not_take_the_service_down(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("AUTH_MODE", "token")
+    monkeypatch.setenv("COPILOT_TOKEN", TOKEN)
+    monkeypatch.setenv("EMBEDDINGS", "azure")          # endpoint, key and deployment missing
+    for k in ("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_EMBED_DEPLOYMENT"):
+        monkeypatch.delenv(k, raising=False)
+    from copilot import api
+    api.STATE.index = None
+    with TestClient(api.app) as c:
+        h = c.get("/health").json()
+        assert h["ok"] and h["dense"] == "failed" and h["retrievers"] == ["bm25", "chars"]
+        assert c.get("/search", params={"q": "Why a topic per agent?"}, headers=H).status_code == 200
