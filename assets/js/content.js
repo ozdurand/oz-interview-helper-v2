@@ -290,7 +290,79 @@ const UI_TEXT = {
   },
   apps: {
     title: 'Applications',
-    sub: 'a job description against your dossier'
+    sub: 'a job description against your dossier',
+    newBtn: '+ New application',
+    empty: 'No applications yet.',
+    loading: 'Loading…',
+    copilotIs: 'Copilot:',
+    change: 'change',
+    connect: {
+      title: 'Connect your copilot',
+      body: 'Applications run on your copilot backend. Use the same address and token you saved when you deployed it.',
+      button: 'Connect'
+    },
+    form: {
+      title: 'New application',
+      hint: 'Paste the whole job posting. Your copilot lists its requirements, checks each one against your dossier, and drafts a prep guide and a résumé from what the dossier actually says.',
+      role: 'Role title',
+      rolePh: 'taken from the posting if empty',
+      company: 'Company',
+      companyPh: 'optional',
+      jd: 'Job description',
+      jdPh: 'Paste the posting here…',
+      submit: 'Analyze and save',
+      busy: 'Analyzing…'
+    },
+    rec: {
+      saved: 'saved',
+      scoreOf: 'of must-haves',
+      scoreTip: 'Must-have requirements: covered = 1, partly = ½',
+      covered: 'covered',
+      partly: 'partly',
+      gaps: 'gaps',
+      refresh: 'Refresh',
+      refreshTip: 'Run it again against what you last sent to the copilot',
+      working: 'Working…',
+      del: 'Delete',
+      delConfirm: 'Delete “{title}”? This can’t be undone.'
+    },
+    tabs: { coverage: 'Coverage', guide: 'Prep guide', resume: 'Résumé draft', posting: 'Posting' },
+    kind: { must: 'Must', nice: 'Nice', resp: 'Role', logistics: 'Logistics' },
+    status: { strong: 'Covered', partial: 'Partly', gap: 'Gap', na: 'You' },
+    coverage: {
+      shows: 'Skills the dossier shows',
+      notShows: 'Skills it doesn’t show',
+      closest: 'Closest:',
+      notIn: 'Not in the dossier:',
+      nothing: 'Nothing to show.'
+    },
+    guide: {
+      stories: 'Lead with these stories',
+      questions: 'Questions they’re likely to ask — with your dossier answer',
+      openCard: 'Open the card →',
+      gaps: 'Gaps to prepare for',
+      verify: 'Confirm before the interview',
+      ask: 'Questions to ask them',
+      yourself: 'Answer these yourself'
+    },
+    resume: {
+      copy: 'Copy as Markdown',
+      copied: 'Copied',
+      download: 'Download .md',
+      hint: 'A starting point from your dossier — rewrite it in your own résumé voice and fill in the brackets.',
+      leftOut: 'Left out on purpose — the posting asks for these, the dossier doesn’t show them:'
+    },
+    flag: 'to confirm',
+    flagTip: 'Marked “to confirm” in the dossier',
+    msg: {
+      askUrl: 'Copilot backend address (for example https://oz-copilot….azurecontainerapps.io):',
+      askToken: 'Copilot sign-in token:',
+      nocfg: 'Connect your copilot first.',
+      net: 'Couldn’t reach {url}. Check the address, or try again in a moment if it was asleep.',
+      auth: 'The copilot refused the sign-in token.',
+      old: 'Your copilot is running an older version without Applications. Run deploy.sh again in Azure Cloud Shell to update it.',
+      error: 'The copilot answered with an error ({status}).'
+    }
   },
   matrix: {
     title: 'The matrix',

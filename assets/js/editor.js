@@ -132,12 +132,18 @@ document.addEventListener('focusout', e => {
   }
 });
 
-/* editable text inside a link or button (matrix cells, quick links, the matrix button):
+/* editable text inside a link, button, row summary or form label (matrix cells, quick links, the
+   matrix button, Applications tabs and rows):
    while editing, a click places the caret instead of navigating */
 document.addEventListener('click', e => {
   if (!OZ.editing) return;
   const ed = e.target.closest && e.target.closest('.ed');
-  if (ed && ed.closest('a, button')) { e.preventDefault(); e.stopPropagation(); }
+  if (ed && ed.closest('a, button, summary, label')) { e.preventDefault(); e.stopPropagation(); return; }
+  /* typing a space in a label inside a button or row summary makes the browser "click" it (detail 0):
+     ignore that click on the control holding the caret; real mouse clicks still go through */
+  const act = document.activeElement;
+  const ctl = e.target.closest && e.target.closest('a, button, summary, label');
+  if (e.detail === 0 && ctl && act && act.classList && act.classList.contains('ed') && ctl.contains(act)) { e.preventDefault(); e.stopPropagation(); }
 }, true);
 
 /* ---------------- row tools (arrays in narrative + chips) ---------------- */
