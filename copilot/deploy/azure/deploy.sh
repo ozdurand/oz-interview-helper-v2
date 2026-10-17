@@ -108,8 +108,16 @@ fi
 
 EXISTS=0
 az containerapp show -n "$NAME" -g "$RG" -o none 2>/dev/null && EXISTS=1
-cur_env()    { [ $EXISTS = 1 ] && az containerapp show -n "$NAME" -g "$RG" --query "properties.template.containers[0].env[?name=='$1'].value | [0]" -o tsv 2>/dev/null || true; }
-cur_secret() { [ $EXISTS = 1 ] && az containerapp secret show -n "$NAME" -g "$RG" --secret-name "$1" --query value -o tsv 2>/dev/null || true; }
+cur_env() {  # current value of an environment variable in the deployed app, empty if none
+  if [ $EXISTS = 1 ]; then
+    az containerapp show -n "$NAME" -g "$RG" --query "properties.template.containers[0].env[?name=='$1'].value | [0]" -o tsv 2>/dev/null || true
+  fi
+}
+cur_secret() {  # current value of a secret in the deployed app, empty if none
+  if [ $EXISTS = 1 ]; then
+    az containerapp secret show -n "$NAME" -g "$RG" --secret-name "$1" --query value -o tsv 2>/dev/null || true
+  fi
+}
 
 NEW_TOKEN=0
 TOKEN_FROM="you provided"
@@ -132,8 +140,9 @@ case "$EMBEDDINGS" in
     AOAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-$(cur_env AZURE_OPENAI_ENDPOINT)}
     AOAI_DEPLOYMENT=${AZURE_OPENAI_EMBED_DEPLOYMENT:-$(cur_env AZURE_OPENAI_EMBED_DEPLOYMENT)}
     EMB_KEY=${AZURE_OPENAI_API_KEY:-$(cur_secret embeddings-key)}
-    [ -n "$AOAI_ENDPOINT" ] && [ -n "$AOAI_DEPLOYMENT" ] && [ -n "$EMB_KEY" ] \
-      || die "EMBEDDINGS=azure needs AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_EMBED_DEPLOYMENT and AZURE_OPENAI_API_KEY"
+    if [ -z "$AOAI_ENDPOINT" ] || [ -z "$AOAI_DEPLOYMENT" ] || [ -z "$EMB_KEY" ]; then
+      die "EMBEDDINGS=azure needs AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_EMBED_DEPLOYMENT and AZURE_OPENAI_API_KEY"
+    fi
     ok "embeddings: Azure OpenAI deployment $AOAI_DEPLOYMENT" ;;
   openai)
     EMB_KEY=${OPENAI_API_KEY:-$(cur_secret embeddings-key)}
