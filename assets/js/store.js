@@ -125,10 +125,41 @@ window.OZ = (() => {
       else pair(s, t);
     });
   }
+  /* content updates to lists a save already holds, each applied once (ids kept in d.applied):
+     a row someone later deletes stays deleted, and edited rows are never overwritten */
+  const OLD_JJ_COORD = ['Orchestrator + agents', 'Coordination drift', 'Six moving parts meant versioning and hand-off drift across agents.', 'A topic per agent on Service Bus, with the orchestrator as the only reader of results.'];
+  function jjOrchestratorPains(d) {
+    const t = d.companies && d.companies.jj, s = shipped.companies.jj;
+    if (!isObj(t) || !Array.isArray(t.pains)) return;
+    const titles = ['Vague hand-offs', 'Lost context, compounding errors', 'Done, right — and debuggable'];
+    const has = title => t.pains.some(p => Array.isArray(p) && p[1] === title);
+    const rows = titles.map(x => s.pains.find(p => p[1] === x)).filter(p => p && !has(p[1])).map(clone);
+    const old = t.pains.findIndex(p => JSON.stringify(p) === JSON.stringify(OLD_JJ_COORD));
+    if (old >= 0) t.pains.splice(old, 1, ...rows);  /* untouched original row: becomes the three orchestrator rows */
+    else {                                          /* edited or removed: keep theirs, add the new rows beside it */
+      const j = t.pains.findIndex(p => Array.isArray(p) && /orchestrat/i.test(p[0] + ' ' + p[1]));
+      const g = t.pains.findIndex(p => Array.isArray(p) && /generation/i.test(p[0]));
+      t.pains.splice(j >= 0 ? j + 1 : (g >= 0 ? g : t.pains.length), 0, ...rows);
+    }
+    const cost = s.pains.find(p => p[1] === 'Token cost multiplied per hop');
+    if (cost && !has(cost[1])) {
+      const k = t.pains.findIndex(p => Array.isArray(p) && /\beval\b|\bops\b/i.test(p[0]));  /* whole words: not “Retrieval” */
+      t.pains.splice(k >= 0 ? k + 1 : t.pains.length, 0, clone(cost));
+    }
+  }
+  const MIGRATIONS = [['jj-pains-orchestrator-cost', jjOrchestratorPains]];
+  shipped.applied = MIGRATIONS.map(m => m[0]);
+  function migrate(d) {
+    const done = new Set(Array.isArray(d.applied) ? d.applied : []);
+    MIGRATIONS.forEach(([id, fn]) => { if (!done.has(id)) { fn(d); done.add(id); } });
+    d.applied = Array.from(done);
+  }
+
   function complete(d) {
     if (!isObj(d.ui)) d.ui = {};
     problemToSlides(d);
     fillInterview(d);
+    migrate(d);
     updateLabels(d);
     fillMissing(d.ui, shipped.ui);
     fillMissing(d.companies, shipped.companies);
